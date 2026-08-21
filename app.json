@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Quickx-App",
-    "slug": "Quickx-App",
+    "name": "QuickXLearn",
+    "slug": "QuickXLearn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "quickxapp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "quickxlearn",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1B5EF5",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -36,7 +36,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": false
     }
   }
 }
