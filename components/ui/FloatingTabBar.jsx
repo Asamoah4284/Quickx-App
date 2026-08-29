@@ -1,18 +1,28 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadow } from '@/constants/theme';
+import { colors, radii } from '@/constants/theme';
 
 const TAB_ORDER = ['index', 'mentorship', 'learn', 'books', 'profile'];
 
 const ICONS = {
-  index: 'home',
-  mentorship: 'handshake-o',
-  learn: 'graduation-cap',
-  books: 'book',
-  profile: 'user',
+  index: { set: 'fa', name: 'home' },
+  mentorship: { set: 'fa', name: 'handshake-o' },
+  learn: { set: 'fa', name: 'graduation-cap' },
+  books: { set: 'ion', name: 'book-outline', activeName: 'book' },
+  profile: { set: 'fa', name: 'user' },
 };
+
+function TabIcon({ tabKey, color, focused, size = 22 }) {
+  const config = ICONS[tabKey] || ICONS.index;
+  if (config.set === 'ion') {
+    const name = focused && config.activeName ? config.activeName : config.name;
+    return <Ionicons name={name} size={size} color={color} />;
+  }
+  return <FontAwesome name={config.name} size={size} color={color} />;
+}
 
 function routeKey(name) {
   return String(name).split('/')[0];
@@ -20,107 +30,96 @@ function routeKey(name) {
 
 export function FloatingTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
+  const bottomPad = Math.max(insets.bottom, 8);
 
   const visibleRoutes = TAB_ORDER.map((key) =>
     state.routes.find((route) => routeKey(route.name) === key)
   ).filter(Boolean);
 
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: bottomPad }]}>
-      <View style={styles.bar}>
-        {visibleRoutes.map((route) => {
-          const { options } = descriptors[route.key];
-          const key = routeKey(route.name);
-          const label =
-            typeof options.tabBarLabel === 'string'
-              ? options.tabBarLabel
-              : options.title || key;
+    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
+      {visibleRoutes.map((route) => {
+        const { options } = descriptors[route.key];
+        const key = routeKey(route.name);
+        const label =
+          typeof options.tabBarLabel === 'string'
+            ? options.tabBarLabel
+            : options.title || key;
 
-          const routeIndex = state.routes.findIndex((r) => r.key === route.key);
-          const isFocused = state.index === routeIndex;
-          const isCenter = key === 'learn';
-          const color = isFocused ? colors.navyMid : colors.tabInactive;
+        const routeIndex = state.routes.findIndex((r) => r.key === route.key);
+        const isFocused = state.index === routeIndex;
+        const isCenter = key === 'learn';
+        const color = isFocused ? colors.navyMid : colors.tabInactive;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
-
-          if (isCenter) {
-            return (
-              <Pressable
-                key={route.key}
-                onPress={onPress}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                style={styles.centerSlot}>
-                <View style={[styles.centerBtn, isFocused && styles.centerBtnActive]}>
-                  <FontAwesome name="graduation-cap" size={24} color={colors.white} />
-                </View>
-                <Text style={[styles.centerLabel, isFocused && styles.centerLabelActive]}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
           }
+        };
 
+        if (isCenter) {
           return (
             <Pressable
               key={route.key}
               onPress={onPress}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              style={styles.tab}>
-              <FontAwesome name={ICONS[key]} size={22} color={color} />
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
+              style={styles.centerSlot}>
+              <View style={[styles.centerBtn, isFocused && styles.centerBtnActive]}>
+                <FontAwesome name="graduation-cap" size={22} color={colors.white} />
+              </View>
+              <Text style={[styles.centerLabel, isFocused && styles.centerLabelActive]}>
                 {label}
               </Text>
             </Pressable>
           );
-        })}
-      </View>
+        }
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            style={styles.tab}>
+            <TabIcon tabKey={key} color={color} focused={isFocused} />
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   bar: {
-    marginHorizontal: 14,
-    marginBottom: Platform.OS === 'android' ? 4 : 0,
     backgroundColor: colors.card,
-    borderRadius: 30,
-    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 6,
-    paddingTop: 12,
-    paddingBottom: 12,
-    ...shadow.card,
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    elevation: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    minHeight: 62,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    elevation: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     paddingBottom: 2,
   },
   label: {
@@ -128,25 +127,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   centerSlot: {
-    flex: 1.15,
+    flex: 1.1,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: -34,
-    gap: 5,
+    marginTop: -22,
+    gap: 4,
   },
   centerBtn: {
-    width: 60,
-    height: 60,
+    width: 52,
+    height: 52,
     borderRadius: radii.full,
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#C99212',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: colors.card,
   },
   centerBtnActive: {

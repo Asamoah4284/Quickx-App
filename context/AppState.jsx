@@ -1,6 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { api, isNetworkError } from '@/constants/api';
 import { initialTransactions, initialWallet } from '@/data/wallet';
+
+const AVATAR_KEY = 'quickx.avatarUri';
+const AUTH_KEY = 'quickx.auth';
 
 const AppStateContext = createContext(null);
 
@@ -33,6 +38,78 @@ export function AppStateProvider({ children }) {
   ]);
   const [purchasedBooks, setPurchasedBooks] = useState(['b4']);
   const [physicalOrders, setPhysicalOrders] = useState([]);
+  const [avatarUri, setAvatarUriState] = useState(null);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(AVATAR_KEY)
+      .then((value) => {
+        if (value) setAvatarUriState(value);
+      })
+      .catch(() => {});
+
+    AsyncStorage.getItem(AUTH_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed?.user) {
+          setUser(parsed.user);
+          setToken(parsed.token || null);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAuthReady(true));
+  }, []);
+
+  const persistAuth = useCallback(async (nextUser, nextToken) => {
+    setUser(nextUser);
+    setToken(nextToken || null);
+    if (nextUser) {
+      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ user: nextUser, token: nextToken || null }));
+    } else {
+      await AsyncStorage.removeItem(AUTH_KEY);
+    }
+  }, []);
+
+  const updateUser = useCallback(async (nextUser) => {
+    if (!nextUser) return;
+    setUser(nextUser);
+    const raw = await AsyncStorage.getItem(AUTH_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ ...parsed, user: nextUser }));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    if (!token || token === 'local') return null;
+    try {
+      const data = await api('/users/validate-token', { token });
+      if (data?.user) {
+        await updateUser(data.user);
+        return data.user;
+      }
+    } catch {
+      // offline or expired token
+    }
+    return null;
+  }, [token, updateUser]);
+
+  useEffect(() => {
+    if (!authReady || !token || token === 'local') return;
+    refreshSession();
+  }, [authReady, token, refreshSession]);
+
+  const setAvatarUri = useCallback((uri) => {
+    setAvatarUriState(uri);
+    if (uri) AsyncStorage.setItem(AVATAR_KEY, uri).catch(() => {});
+    else AsyncStorage.removeItem(AVATAR_KEY).catch(() => {});
+  }, []);
 
   const setBalance = useCallback((next) => {
     balanceRef.current = next;
@@ -111,6 +188,13 @@ export function AppStateProvider({ children }) {
     return true;
   }, [pay]);
 
+  const grantCourseAccess = useCallback((courseId) => {
+    setEnrolledCourses((prev) => ({
+      ...prev,
+      [courseId]: prev[courseId] || { progress: {}, lastLessonId: null },
+    }));
+  }, []);
+
   const markLessonComplete = useCallback((courseId, lessonId) => {
     setEnrolledCourses((prev) => {
       const current = prev[courseId] || { progress: {}, lastLessonId: null };
@@ -176,6 +260,47 @@ export function AppStateProvider({ children }) {
     [pay]
   );
 
+  const requestOtp = useCallback(async (phone, purpose, profile = {}) => {
+    try {
+      const data = await api('/users/otp/request', {
+        method: 'POST',
+        body: { phone, purpose, ...profile },
+      });
+      return { offline: false, devCode: data.devCode };
+    } catch (error) {
+      if (!isNetworkError(error) && error.name !== 'AbortError') throw error;
+      return { offline: true };
+    }
+  }, []);
+
+  const verifyOtp = useCallback(async (phone, code, profile = {}) => {
+    try {
+      const data = await api('/users/otp/verify', {
+        method: 'POST',
+        body: { phone, code },
+      });
+      await persistAuth(data.user, data.token);
+    } catch (error) {
+      if (!isNetworkError(error) && error.name !== 'AbortError') throw error;
+      if (code !== '123456') {
+        throw new Error('Wrong code. Use 123456 while offline.');
+      }
+      await persistAuth(
+        {
+          id: 'local',
+          fullName: profile.fullName || 'QuickX Learner',
+          email: profile.email || '',
+          phone,
+        },
+        'local'
+      );
+    }
+  }, [persistAuth]);
+
+  const logout = useCallback(async () => {
+    await persistAuth(null, null);
+  }, [persistAuth]);
+
   const value = useMemo(
     () => ({
       walletBalance,
@@ -196,12 +321,23 @@ export function AppStateProvider({ children }) {
       toggleWishlistBook,
       toggleFollowTutor,
       enrollCourse,
+      grantCourseAccess,
       markLessonComplete,
       setLastLesson,
       createBooking,
       cancelBooking,
       completeBooking,
       buyBook,
+      avatarUri,
+      setAvatarUri,
+      user,
+      token,
+      authReady,
+      requestOtp,
+      verifyOtp,
+      logout,
+      updateUser,
+      refreshSession,
       isEnrolled: (id) => Boolean(enrolledCourses[id]),
       isSavedCourse: (id) => savedCourses.includes(id),
       isWishlisted: (id) => wishlistBooks.includes(id),
@@ -226,12 +362,23 @@ export function AppStateProvider({ children }) {
       toggleWishlistBook,
       toggleFollowTutor,
       enrollCourse,
+      grantCourseAccess,
       markLessonComplete,
       setLastLesson,
       createBooking,
       cancelBooking,
       completeBooking,
       buyBook,
+      avatarUri,
+      setAvatarUri,
+      user,
+      token,
+      authReady,
+      requestOtp,
+      verifyOtp,
+      logout,
+      updateUser,
+      refreshSession,
     ]
   );
 

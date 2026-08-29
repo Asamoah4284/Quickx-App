@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, radii, spacing } from '@/constants/theme';
 
@@ -7,32 +7,32 @@ export function PrimaryButton({
   onPress,
   variant = 'primary',
   disabled = false,
+  loading = false,
   style,
 }) {
   const isSecondary = variant === 'secondary';
   const isGhost = variant === 'ghost';
   const isDanger = variant === 'danger';
+  const isOff = disabled || loading;
+  const textColor = isSecondary || isGhost ? colors.primary : colors.white;
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isOff}
       style={({ pressed }) => [
         styles.btn,
         isSecondary && styles.secondary,
         isGhost && styles.ghost,
         isDanger && styles.danger,
-        (pressed || disabled) && { opacity: disabled ? 0.45 : 0.85 },
+        (pressed || isOff) && { opacity: isOff ? 0.45 : 0.85 },
         style,
       ]}>
-      <Text
-        style={[
-          styles.label,
-          (isSecondary || isGhost) && { color: colors.primary },
-          isDanger && { color: colors.white },
-        ]}>
-        {label}
-      </Text>
+      {loading ? (
+        <ActivityIndicator color={textColor} />
+      ) : (
+        <Text style={[styles.label, { color: isDanger ? colors.white : textColor }]}>{label}</Text>
+      )}
     </Pressable>
   );
 }

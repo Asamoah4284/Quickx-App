@@ -1,18 +1,45 @@
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { getCourseById } from '@/data/courses';
+import { fetchCoursePreview } from '@/utils/catalog';
 import { formatCurrency, formatPriceCedi } from '@/utils/format';
 
 export default function CheckoutScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { walletBalance, currency, enrollCourse, isEnrolled } = useAppState();
-  const course = getCourseById(String(id));
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetchCoursePreview(String(id))
+      .then((item) => {
+        if (alive) setCourse(item);
+      })
+      .catch(() => {
+        if (alive) setCourse(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Screen>
+        <ActivityIndicator color={colors.primary} />
+      </Screen>
+    );
+  }
 
   if (!course) {
     return (
@@ -48,7 +75,7 @@ export default function CheckoutScreen() {
 
   return (
     <Screen>
-      <Text style={typography.h2}>Subscribe / Purchase</Text>
+      <Text style={typography.h2}>Checkout</Text>
       <Text style={[typography.caption, { marginTop: spacing.sm }]}>{course.title}</Text>
 
       <View style={styles.card}>
@@ -61,7 +88,7 @@ export default function CheckoutScreen() {
       </View>
 
       <Text style={[typography.caption, { marginBottom: spacing.lg }]}>
-        Payment is simulated with your QuickX Wallet (mock). No real charge is made.
+        Payment is simulated with your QuickX Wallet for now.
       </Text>
 
       <PrimaryButton label={`Pay ${formatPriceCedi(course.price)}`} onPress={onPay} />

@@ -1,63 +1,115 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { BookCard } from '@/components/ui/BookCard';
 import { CourseCard } from '@/components/ui/CourseCard';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { getBooksByTutor } from '@/data/books';
-import { getCoursesByTutor } from '@/data/courses';
-import { getTutorById } from '@/data/tutors';
+import { fetchTutorProfile } from '@/utils/catalog';
+import { fetchTutorSubscriptionMe } from '@/utils/community';
 
 export default function TutorProfileScreen() {
   const { id, fromCourse } = useLocalSearchParams();
   const router = useRouter();
-  const { isFollowing, toggleFollowTutor } = useAppState();
-  const tutor = getTutorById(String(id));
+  const { isFollowing, toggleFollowTutor, token } = useAppState();
+  const [tutor, setTutor] = useState(null);
+  const [access, setAccess] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!tutor) {
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetchTutorProfile(String(id))
+      .then(async (item) => {
+        if (!alive) return;
+        setTutor(item);
+        if (token && token !== 'local') {
+          try {
+            const me = await fetchTutorSubscriptionMe(String(id), token);
+            if (alive) setAccess(me);
+          } catch {
+            if (alive) setAccess(null);
+          }
+        }
+      })
+      .catch(() => {
+        if (alive) setTutor(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id, token]);
+
+  if (loading) {
     return (
       <Screen>
-        <Text>Tutor not found.</Text>
+        <ActivityIndicator color={colors.primary} />
       </Screen>
     );
   }
 
-  const tutorCourses = getCoursesByTutor(tutor.id);
-  const tutorBooks = getBooksByTutor(tutor.id);
+  if (!tutor) {
+    return (
+      <Screen>
+        <EmptyState icon="user" title="Tutor not found" subtitle="This tutor may no longer be available." />
+      </Screen>
+    );
+  }
+
+  const tutorCourses = tutor.courses || [];
   const linkedCourse = fromCourse ? String(fromCourse) : tutorCourses[0]?.id;
+  const expertise = tutor.expertise?.length ? tutor.expertise : tutor.teachingCategories || [];
 
   return (
     <Screen>
       <View style={styles.header}>
-        <Image source={{ uri: tutor.avatar }} style={styles.avatar} />
+        {tutor.avatar ? (
+          <Image source={{ uri: tutor.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarLetter}>{tutor.name.charAt(0)}</Text>
+          </View>
+        )}
         <View style={{ flex: 1 }}>
           <Text style={typography.h2}>{tutor.name}</Text>
           <Text style={typography.caption}>{tutor.title}</Text>
           <View style={styles.meta}>
             <FontAwesome name="star" size={12} color={colors.star} />
             <Text style={styles.metaText}>
-              {tutor.rating} · {tutor.students} students · {tutor.experience}
+              {tutor.rating || 'New'}
+              {tutor.students ? ` · ${tutor.students} students` : ''}
+              {tutor.courseCount ? ` · ${tutor.courseCount} courses` : ''}
+              {tutor.experience ? ` · ${tutor.experience}` : ''}
             </Text>
           </View>
         </View>
       </View>
 
-      <Text style={[typography.body, { lineHeight: 22, marginVertical: spacing.lg }]}>
-        {tutor.bio}
-      </Text>
+      {tutor.bio ? (
+        <Text style={[typography.body, { lineHeight: 22, marginVertical: spacing.lg }]}>{tutor.bio}</Text>
+      ) : (
+        <View style={{ height: spacing.lg }} />
+      )}
 
-      <Text style={typography.h3}>Expertise</Text>
-      <View style={styles.tags}>
-        {tutor.expertise.map((e) => (
-          <View key={e} style={styles.tag}>
-            <Text style={styles.tagText}>{e}</Text>
+      {expertise.length ? (
+        <>
+          <Text style={typography.h3}>Expertise</Text>
+          <View style={styles.tags}>
+            {expertise.map((e) => (
+              <View key={e} style={styles.tag}>
+                <Text style={styles.tagText}>{e}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </>
+      ) : null}
 
       <View style={styles.actions}>
         <PrimaryButton
@@ -73,62 +125,39 @@ export default function TutorProfileScreen() {
         />
       </View>
 
+      <View style={styles.actions}>
+        <PrimaryButton
+          label={access?.subscribed ? 'Manage plan' : 'Subscribe'}
+          onPress={() => router.push(`/subscribe/${tutor.id}`)}
+          style={{ flex: 1 }}
+        />
+        <PrimaryButton
+          label={access?.canAccessCommunity ? 'Open community' : 'Community'}
+          variant="secondary"
+          onPress={() =>
+            access?.canAccessCommunity
+              ? router.push(`/community/${tutor.id}`)
+              : router.push(`/subscribe/${tutor.id}`)
+          }
+          style={{ flex: 1 }}
+        />
+      </View>
+
       {linkedCourse ? (
         <PrimaryButton
           label="Preview this tutor’s course"
           variant="ghost"
-          onPress={() => router.push(`/course/${linkedCourse}/preview`)}
+          onPress={() => router.push(`/course/${linkedCourse}`)}
           style={{ marginTop: spacing.sm }}
         />
       ) : null}
 
-      <Text style={[typography.h3, { marginTop: spacing.xl, marginBottom: spacing.md }]}>
-        Courses
-      </Text>
-      {tutorCourses.map((c) => (
-        <CourseCard key={c.id} course={c} />
-      ))}
-
-      {tutorBooks.length ? (
-        <>
-          <Text style={[typography.h3, { marginTop: spacing.md, marginBottom: spacing.md }]}>
-            Books
-          </Text>
-          {tutorBooks.map((b) => (
-            <BookCard key={b.id} book={b} />
-          ))}
-        </>
-      ) : null}
-
-      <Text style={[typography.h3, { marginTop: spacing.md, marginBottom: spacing.md }]}>
-        Mentorship services
-      </Text>
-      {tutor.services.map((s) => (
-        <Pressable
-          key={s.id}
-          style={styles.service}
-          onPress={() => router.push(`/booking/${tutor.id}?service=${s.id}`)}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.serviceName}>{s.name}</Text>
-            <Text style={typography.caption}>
-              {s.durationMins} min · ₵{s.price}
-            </Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color={colors.muted} />
-        </Pressable>
-      ))}
-
-      <Text style={[typography.h3, { marginTop: spacing.xl, marginBottom: spacing.md }]}>
-        Reviews
-      </Text>
-      {tutor.reviews.map((r) => (
-        <View key={r.id} style={styles.review}>
-          <Text style={styles.reviewUser}>
-            {r.user} · {r.rating}★
-          </Text>
-          <Text style={typography.caption}>{r.text}</Text>
-        </View>
-      ))}
+      <Text style={[typography.h3, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Courses</Text>
+      {tutorCourses.length ? (
+        tutorCourses.map((c) => <CourseCard key={c.id} course={c} layout="row" />)
+      ) : (
+        <Text style={styles.empty}>No published courses yet.</Text>
+      )}
     </Screen>
   );
 }
@@ -136,8 +165,14 @@ export default function TutorProfileScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.border },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.navy,
+  },
+  avatarLetter: { color: colors.white, fontWeight: '800', fontSize: 24 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  metaText: { color: colors.muted, fontSize: 12 },
+  metaText: { color: colors.muted, fontSize: 12, flexShrink: 1 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   tag: {
     backgroundColor: '#1B5EF514',
@@ -147,17 +182,5 @@ const styles = StyleSheet.create({
   },
   tagText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
-  service: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  serviceName: { fontWeight: '700', color: colors.text },
-  review: { marginBottom: spacing.md },
-  reviewUser: { fontWeight: '700', marginBottom: 4, color: colors.text },
+  empty: { color: colors.muted, fontSize: 13 },
 });

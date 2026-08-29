@@ -1,4 +1,5 @@
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -8,13 +9,42 @@ import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { getBookById } from '@/data/books';
+import { fetchBookPreview } from '@/utils/catalog';
 import { formatPriceCedi } from '@/utils/format';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { buyBook, isBookOwned, isWishlisted, toggleWishlistBook } = useAppState();
-  const book = getBookById(String(id));
+  const mock = getBookById(String(id));
+  const [book, setBook] = useState(mock || null);
+  const [loading, setLoading] = useState(!mock);
+
+  useEffect(() => {
+    if (mock) return undefined;
+    let alive = true;
+    fetchBookPreview(String(id))
+      .then((item) => {
+        if (alive) setBook(item);
+      })
+      .catch(() => {
+        if (alive) setBook(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id, mock]);
+
+  if (loading) {
+    return (
+      <Screen>
+        <ActivityIndicator color={colors.primary} />
+      </Screen>
+    );
+  }
 
   if (!book) {
     return (
@@ -42,7 +72,7 @@ export default function BookDetailScreen() {
 
   return (
     <Screen>
-      <Image source={{ uri: book.cover }} style={styles.cover} />
+      <Image source={book.cover ? { uri: book.cover } : undefined} style={styles.cover} />
       <Badge label={book.type} tone="muted" />
       <Text style={[typography.h2, { marginTop: spacing.sm }]}>{book.title}</Text>
       <Text style={typography.caption}>by {book.author}</Text>
@@ -50,20 +80,26 @@ export default function BookDetailScreen() {
         {book.description}
       </Text>
 
-      <View style={styles.preview}>
-        <Text style={styles.previewLabel}>Preview</Text>
-        <Text style={typography.caption}>{book.preview}</Text>
-      </View>
-
-      <Text style={[typography.h3, { marginBottom: spacing.sm }]}>Reviews</Text>
-      {book.reviews.map((r) => (
-        <View key={r.id} style={{ marginBottom: spacing.md }}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>
-            {r.user} · {r.rating}★
-          </Text>
-          <Text style={typography.caption}>{r.text}</Text>
+      {book.preview ? (
+        <View style={styles.preview}>
+          <Text style={styles.previewLabel}>Preview</Text>
+          <Text style={typography.caption}>{book.preview}</Text>
         </View>
-      ))}
+      ) : null}
+
+      {(book.reviews || []).length ? (
+        <>
+          <Text style={[typography.h3, { marginBottom: spacing.sm }]}>Reviews</Text>
+          {book.reviews.map((r) => (
+            <View key={r.id} style={{ marginBottom: spacing.md }}>
+              <Text style={{ fontWeight: '700', color: colors.text }}>
+                {r.user} · {r.rating}★
+              </Text>
+              <Text style={typography.caption}>{r.text}</Text>
+            </View>
+          ))}
+        </>
+      ) : null}
 
       <Text style={styles.price}>{formatPriceCedi(book.price)}</Text>
 

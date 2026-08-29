@@ -1,4 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
 import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
@@ -12,6 +13,8 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.navyMid,
         tabBarInactiveTintColor: colors.tabInactive,
+        animation: 'shift',
+        lazy: false,
       }}>
       <Tabs.Screen
         name="index"
@@ -31,7 +34,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="learn"
         options={{
-          title: 'Learn',
+          title: 'Courses',
+          tabBarLabel: 'Courses',
           tabBarIcon: ({ color }) => <FontAwesome name="graduation-cap" size={22} color={color} />,
         }}
       />
@@ -39,7 +43,9 @@ export default function TabLayout() {
         name="books"
         options={{
           title: 'Books',
-          tabBarIcon: ({ color }) => <FontAwesome name="book" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'book' : 'book-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -1,5 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
 
@@ -8,7 +9,9 @@ export function Screen({ children, scroll = true, style, contentStyle }) {
     <ScrollView
       contentContainerStyle={[styles.content, contentStyle]}
       showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled">
+      keyboardShouldPersistTaps="handled"
+      directionalLockEnabled
+      bounces>
       {children}
     </ScrollView>
   ) : (
@@ -17,6 +20,7 @@ export function Screen({ children, scroll = true, style, contentStyle }) {
 
   return (
     <SafeAreaView style={[styles.safe, style]} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" />
       {body}
     </SafeAreaView>
   );
@@ -30,6 +34,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: {
     padding: spacing.lg,
-    paddingBottom: 110,
+    paddingBottom: spacing.xxl,
   },
 });

@@ -8,9 +8,17 @@
     "scheme": "quickxlearn",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "QuickXLearn uses your local network to reach the QuickX API while developing.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#1B5EF5",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -33,10 +41,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow QuickXLearn to access your photos so you can set a profile picture.",
+          "cameraPermission": "Allow QuickXLearn to use the camera to take a profile picture."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "apiUrl": "http://172.20.10.3:5000/api"
     }
   }
 }

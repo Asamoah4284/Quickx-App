@@ -11,7 +11,10 @@ export function TutorCard({ tutor }) {
     <Pressable
       onPress={() => router.push(`/tutor/${tutor.id}`)}
       style={[styles.card, shadow.card]}>
-      <Image source={{ uri: tutor.avatar }} style={styles.avatar} />
+      <Image
+        source={tutor.avatar ? { uri: tutor.avatar } : undefined}
+        style={styles.avatar}
+      />
       <View style={styles.body}>
         <Text style={styles.name}>{tutor.name}</Text>
         <Text style={styles.title} numberOfLines={1}>
@@ -19,12 +22,14 @@ export function TutorCard({ tutor }) {
         </Text>
         <View style={styles.meta}>
           <FontAwesome name="star" size={12} color={colors.star} />
-          <Text style={styles.metaText}>{tutor.rating}</Text>
+          <Text style={styles.metaText}>{tutor.rating || 'New'}</Text>
           <Text style={styles.dot}>·</Text>
-          <Text style={styles.metaText}>{tutor.students} students</Text>
+          <Text style={styles.metaText}>
+            {tutor.students ? `${tutor.students} students` : `${tutor.courseCount || 0} courses`}
+          </Text>
         </View>
         <Text style={styles.expertise} numberOfLines={1}>
-          {tutor.expertise.join(' · ')}
+          {(tutor.expertise || []).join(' · ') || 'QuickX tutor'}
         </Text>
       </View>
       <FontAwesome name="chevron-right" size={14} color={colors.muted} />
