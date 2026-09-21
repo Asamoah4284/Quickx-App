@@ -15,13 +15,13 @@ import {
   subscribeToTutor,
   SUBSCRIPTION_PLANS,
 } from '@/utils/community';
-import { formatCurrency, formatPriceCedi } from '@/utils/format';
+import { formatPriceCedi } from '@/utils/format';
 
 export default function SubscribeTutorScreen() {
   const { tutorId } = useLocalSearchParams();
   const id = String(tutorId);
   const router = useRouter();
-  const { token, user, walletBalance, currency, pay } = useAppState();
+  const { token, user } = useAppState();
   const [tutor, setTutor] = useState(null);
   const [access, setAccess] = useState(null);
   const [planId, setPlanId] = useState('premium');
@@ -61,8 +61,8 @@ export default function SubscribeTutorScreen() {
       Alert.alert('Unavailable', 'This plan is not available.');
       return;
     }
-    if (!pay(amount, `Subscribe ${tutor.name} · ${planId}`)) {
-      Alert.alert('Insufficient balance', 'Top up your QuickX Wallet first.');
+    if (!user?.phone) {
+      Alert.alert('Phone required', 'Add your phone number in Settings before subscribing.');
       return;
     }
     setPaying(true);
@@ -74,6 +74,9 @@ export default function SubscribeTutorScreen() {
         amount,
         phone: user?.phone,
         email: user?.email,
+        onPending: () => {
+          Alert.alert('Approve payment', 'Check your phone for the MoMo prompt to complete subscription.');
+        },
       });
       Alert.alert('Subscribed', 'Your plan is active.', [
         {
@@ -151,7 +154,7 @@ export default function SubscribeTutorScreen() {
         );
       })}
 
-      <Text style={styles.wallet}>Wallet · {formatCurrency(walletBalance, currency)}</Text>
+      <Text style={styles.wallet}>Payment via Moolre Mobile Money</Text>
 
       <PrimaryButton
         label={`Subscribe · ${formatPriceCedi(planPriceFromTutor(tutor, planId))}`}
@@ -167,12 +170,6 @@ export default function SubscribeTutorScreen() {
           style={{ marginTop: spacing.sm }}
         />
       ) : null}
-      <PrimaryButton
-        label="Top up wallet"
-        variant="ghost"
-        onPress={() => router.push('/wallet')}
-        style={{ marginTop: spacing.sm }}
-      />
     </Screen>
   );
 }

@@ -1,46 +1,107 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { PaymentCheckout } from '@/components/checkout/PaymentCheckout';
+import { HardcopyRequestModal } from '@/components/books/HardcopyRequestModal';
 import { Badge } from '@/components/ui/Badge';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { getBookById } from '@/data/books';
-import { fetchBookPreview } from '@/utils/catalog';
+import { fetchBookOffers, fetchBookPreview } from '@/utils/catalog';
+import { initializePurchase } from '@/utils/payments';
 import { formatPriceCedi } from '@/utils/format';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { buyBook, isBookOwned, isWishlisted, toggleWishlistBook } = useAppState();
-  const mock = getBookById(String(id));
-  const [book, setBook] = useState(mock || null);
-  const [loading, setLoading] = useState(!mock);
+  const { token, user, isWishlisted, toggleWishlistBook, toggleCartBook, cartBookIds } = useAppState();
+  const [book, setBook] = useState(null);
+  const [offers, setOffers] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showHardcopy, setShowHardcopy] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [paying, setPaying] = useState(false);
+  const [owned, setOwned] = useState(false);
 
   useEffect(() => {
-    if (mock) return undefined;
     let alive = true;
-    fetchBookPreview(String(id))
-      .then((item) => {
-        if (alive) setBook(item);
-      })
-      .catch(() => {
+    (async () => {
+      try {
+        const item = await fetchBookPreview(String(id));
+        if (!alive) return;
+        setBook(item);
+        const offerGroup = await fetchBookOffers(String(id)).catch(() => null);
+        if (alive) setOffers(offerGroup);
+        if (token && token !== 'local') {
+          try {
+            const { fetchBookContent } = await import('@/utils/catalog');
+            await fetchBookContent(String(id), token);
+            if (alive) setOwned(true);
+          } catch {
+            if (alive) setOwned(false);
+          }
+        }
+      } catch {
         if (alive) setBook(null);
-      })
-      .finally(() => {
+      } finally {
         if (alive) setLoading(false);
-      });
+      }
+    })();
     return () => {
       alive = false;
     };
-  }, [id, mock]);
+  }, [id, token]);
+
+  const purchasePrice = selectedOffer?.price ?? book?.price ?? 0;
+  const inCart = book ? cartBookIds.includes(book.id) : false;
+  const isPhysical = book?.type === 'physical';
+  const isDigital = book?.type === 'digital' || book?.type === 'bundle';
+
+  const onPay = async ({ phone, email, amount, referralCode }) => {
+    if (!book || !token) return;
+    setPaying(true);
+    try {
+      if (selectedOffer) {
+        await initializePurchase({
+          token,
+          itemType: 'book_offer',
+          itemId: book.id,
+          offerOptionId: selectedOffer.id,
+          amount,
+          phone,
+          email,
+          referralCode,
+        });
+      } else {
+        await initializePurchase({
+          token,
+          itemType: 'book',
+          itemId: book.id,
+          amount,
+          phone,
+          email,
+          referralCode,
+        });
+      }
+      setOwned(true);
+      setShowCheckout(false);
+      Alert.alert('Purchase successful', 'Your book is ready to read.', [
+        { text: 'Read now', onPress: () => router.push(`/book/${book.id}/read`) },
+      ]);
+    } catch (error) {
+      Alert.alert('Payment failed', error.message || 'Try again.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   if (loading) {
     return (
-      <Screen>
+      <Screen scroll={false} contentStyle={styles.center}>
         <ActivityIndicator color={colors.primary} />
       </Screen>
     );
@@ -54,21 +115,30 @@ export default function BookDetailScreen() {
     );
   }
 
-  const owned = isBookOwned(book.id);
-
-  const onBuy = () => {
-    const ok = buyBook(book);
-    if (!ok) {
-      Alert.alert('Insufficient balance', 'Top up your QuickX Wallet first.');
-      return;
-    }
-    Alert.alert(
-      'Purchase successful',
-      book.type === 'physical' || book.type === 'bundle'
-        ? 'Order placed. Track it from Wallet → Orders (mock).'
-        : 'Digital book added to your library.'
+  if (showCheckout) {
+    return (
+      <Screen>
+        <PrimaryButton
+          label="← Back to details"
+          variant="ghost"
+          onPress={() => setShowCheckout(false)}
+          style={{ marginBottom: spacing.md }}
+        />
+        {!token || token === 'local' ? (
+          <Text style={{ color: colors.muted }}>Sign in to purchase this book.</Text>
+        ) : (
+          <PaymentCheckout
+            title="Buy book"
+            subtitle={selectedOffer ? selectedOffer.label : book.title}
+            price={purchasePrice}
+            user={user}
+            paying={paying}
+            onPay={onPay}
+          />
+        )}
+      </Screen>
     );
-  };
+  }
 
   return (
     <Screen>
@@ -80,33 +150,60 @@ export default function BookDetailScreen() {
         {book.description}
       </Text>
 
-      {book.preview ? (
-        <View style={styles.preview}>
-          <Text style={styles.previewLabel}>Preview</Text>
-          <Text style={typography.caption}>{book.preview}</Text>
+      {offers?.options?.length ? (
+        <View style={styles.offers}>
+          <Text style={styles.offersTitle}>Bundle options</Text>
+          {offers.options.map((opt) => (
+            <Pressable
+              key={opt.id}
+              style={[styles.offerRow, selectedOffer?.id === opt.id && styles.offerActive]}
+              onPress={() => setSelectedOffer(opt)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.offerLabel}>{opt.label}</Text>
+                {opt.description ? <Text style={styles.offerDesc}>{opt.description}</Text> : null}
+              </View>
+              <Text style={styles.offerPrice}>{formatPriceCedi(opt.price)}</Text>
+            </Pressable>
+          ))}
         </View>
       ) : null}
 
-      {(book.reviews || []).length ? (
-        <>
-          <Text style={[typography.h3, { marginBottom: spacing.sm }]}>Reviews</Text>
-          {book.reviews.map((r) => (
-            <View key={r.id} style={{ marginBottom: spacing.md }}>
-              <Text style={{ fontWeight: '700', color: colors.text }}>
-                {r.user} · {r.rating}★
-              </Text>
-              <Text style={typography.caption}>{r.text}</Text>
-            </View>
-          ))}
-        </>
-      ) : null}
-
-      <Text style={styles.price}>{formatPriceCedi(book.price)}</Text>
+      <Text style={styles.price}>{formatPriceCedi(selectedOffer?.price ?? book.price)}</Text>
 
       {owned ? (
-        <PrimaryButton label="Owned" disabled />
+        <>
+          <PrimaryButton label="Read book" onPress={() => router.push(`/book/${book.id}/read`)} />
+          <PrimaryButton label="Owned" disabled variant="secondary" style={{ marginTop: spacing.sm }} />
+        </>
       ) : (
-        <PrimaryButton label={`Buy · ${formatPriceCedi(book.price)}`} onPress={onBuy} />
+        <>
+          {isDigital ? (
+            <PrimaryButton
+              label={`Buy · ${formatPriceCedi(selectedOffer?.price ?? book.price)}`}
+              onPress={() => {
+                if (!token || token === 'local') {
+                  Alert.alert('Sign in required', 'Sign in to purchase this book.');
+                  return;
+                }
+                setShowCheckout(true);
+              }}
+            />
+          ) : null}
+          {isPhysical ? (
+            <PrimaryButton
+              label="Request hardcopy"
+              onPress={() => setShowHardcopy(true)}
+            />
+          ) : null}
+          {isDigital && !owned ? (
+            <PrimaryButton
+              label={inCart ? 'In cart' : 'Add to cart'}
+              variant="secondary"
+              onPress={() => toggleCartBook(book.id)}
+              style={{ marginTop: spacing.sm }}
+            />
+          ) : null}
+        </>
       )}
       <PrimaryButton
         label={isWishlisted(book.id) ? 'In wishlist' : 'Add to wishlist'}
@@ -114,19 +211,18 @@ export default function BookDetailScreen() {
         onPress={() => toggleWishlistBook(book.id)}
         style={{ marginTop: spacing.sm }}
       />
-      {book.tutorId ? (
-        <PrimaryButton
-          label="View author / tutor"
-          variant="ghost"
-          onPress={() => router.push(`/tutor/${book.tutorId}`)}
-          style={{ marginTop: spacing.sm }}
-        />
-      ) : null}
+      <HardcopyRequestModal
+        book={book}
+        visible={showHardcopy}
+        onClose={() => setShowHardcopy(false)}
+        user={user}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cover: {
     width: '100%',
     height: 220,
@@ -134,19 +230,28 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     backgroundColor: colors.border,
   },
-  preview: {
-    marginVertical: spacing.xl,
-    padding: spacing.lg,
-    backgroundColor: colors.card,
+  offers: { marginTop: spacing.xl, marginBottom: spacing.md },
+  offersTitle: { fontWeight: '800', marginBottom: spacing.sm, color: colors.text },
+  offerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
     borderRadius: radii.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.card,
   },
-  previewLabel: { fontWeight: '700', marginBottom: spacing.sm, color: colors.text },
+  offerActive: { borderColor: colors.primary, backgroundColor: '#F6F9FF' },
+  offerLabel: { fontWeight: '700', color: colors.text },
+  offerDesc: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  offerPrice: { fontWeight: '800', color: colors.primary },
   price: {
     fontSize: 24,
     fontWeight: '800',
     color: colors.primary,
     marginBottom: spacing.lg,
+    marginTop: spacing.md,
   },
 });

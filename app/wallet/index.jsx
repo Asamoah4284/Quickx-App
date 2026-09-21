@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
+import { detectMomoNetwork, getMomoNetworks } from '@/utils/moolre';
 import { formatCurrency } from '@/utils/format';
 
 export default function WalletScreen() {
@@ -16,51 +17,102 @@ export default function WalletScreen() {
     transactions,
     deposit,
     withdraw,
-    transfer,
-    physicalOrders,
+    user,
+    token,
+    loadWallet,
   } = useAppState();
   const [modal, setModal] = useState(null);
-  const [amount, setAmount] = useState('100');
-  const [note, setNote] = useState('');
+  const [amount, setAmount] = useState('50');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [network, setNetwork] = useState(detectMomoNetwork(user?.phone || ''));
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user?.phone) {
+      setPhone(user.phone);
+      setNetwork(detectMomoNetwork(user.phone));
+    }
+  }, [user?.phone]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadWallet();
+    setRefreshing(false);
+  }, [loadWallet]);
+
+  useEffect(() => {
+    if (token && token !== 'local') refresh();
+  }, [token, refresh]);
 
   const close = () => {
     setModal(null);
-    setAmount('100');
-    setNote('');
+    setAmount('50');
+    setSubmitting(false);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const value = Number(amount);
     if (!value || value <= 0) {
       Alert.alert('Invalid amount');
       return;
     }
-    if (modal === 'deposit') {
-      deposit(value);
-      Alert.alert('Deposit successful');
-    } else if (modal === 'withdraw') {
-      if (!withdraw(value)) Alert.alert('Insufficient balance');
-      else Alert.alert('Withdrawal requested (mock)');
-    } else if (modal === 'transfer') {
-      if (!transfer(value, note || 'Transfer')) Alert.alert('Insufficient balance');
-      else Alert.alert('Transfer sent (mock)');
+    if (!phone || phone.replace(/\D/g, '').length < 9) {
+      Alert.alert('Phone required', 'Enter your Mobile Money number.');
+      return;
     }
-    close();
+    setSubmitting(true);
+    try {
+      if (modal === 'deposit') {
+        const ok = await deposit({
+          amount: value,
+          phone,
+          network,
+          onPending: () => {
+            Alert.alert('Approve top-up', 'Check your phone for the MoMo prompt to add funds.');
+          },
+        });
+        if (!ok) Alert.alert('Top-up failed', 'Could not complete the deposit.');
+        else Alert.alert('Top-up successful', 'Your wallet balance has been updated.');
+      } else if (modal === 'withdraw') {
+        if (walletBalance < value) {
+          Alert.alert('Insufficient balance');
+          return;
+        }
+        const ok = await withdraw({ amount: value, phone, network });
+        if (!ok) Alert.alert('Withdrawal failed', 'Could not submit withdrawal.');
+        else Alert.alert('Withdrawal requested', 'Funds will be sent to your MoMo number.');
+      }
+      close();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  if (!token || token === 'local') {
+    return (
+      <Screen>
+        <Text style={typography.h2}>QuickX Wallet</Text>
+        <Text style={[typography.caption, { marginTop: spacing.md }]}>
+          Sign in to use your wallet for bookings and top-ups.
+        </Text>
+      </Screen>
+    );
+  }
+
   return (
-    <Screen>
+    <Screen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
       <Text style={[typography.h2, { marginBottom: spacing.md }]}>QuickX Wallet</Text>
 
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Available balance</Text>
         <Text style={styles.balanceValue}>{formatCurrency(walletBalance, currency)}</Text>
+        <Text style={styles.balanceHint}>Top up via Moolre Mobile Money</Text>
       </View>
 
       <View style={styles.actions}>
-        <Action label="Deposit" onPress={() => setModal('deposit')} />
+        <Action label="Top up" onPress={() => setModal('deposit')} />
         <Action label="Withdraw" onPress={() => setModal('withdraw')} />
-        <Action label="Transfer" onPress={() => setModal('transfer')} />
       </View>
 
       <Pressable style={styles.linkCard} onPress={() => router.push('/bookings')}>
@@ -68,50 +120,37 @@ export default function WalletScreen() {
         <Text style={typography.caption}>Sessions paid from wallet</Text>
       </Pressable>
 
-      {physicalOrders.length ? (
-        <>
-          <Text style={[typography.h3, { marginTop: spacing.xl, marginBottom: spacing.md }]}>
-            Physical orders
-          </Text>
-          {physicalOrders.map((o) => (
-            <View key={o.id} style={styles.tx}>
-              <Text style={styles.txLabel}>{o.title}</Text>
-              <Text style={typography.caption}>
-                {o.status} · {o.date}
-              </Text>
-            </View>
-          ))}
-        </>
-      ) : null}
-
       <Text style={[typography.h3, { marginTop: spacing.xl, marginBottom: spacing.md }]}>
         Transaction history
       </Text>
-      {transactions.map((tx) => (
-        <View key={tx.id} style={styles.tx}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.txLabel}>{tx.label}</Text>
-            <Text style={typography.caption}>
-              {tx.type} · {tx.date}
+      {transactions.length ? (
+        transactions.map((tx) => (
+          <View key={tx.id} style={styles.tx}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.txLabel}>{tx.label || tx.type}</Text>
+              <Text style={typography.caption}>
+                {tx.type} · {tx.date}
+                {tx.status && tx.status !== 'completed' ? ` · ${tx.status}` : ''}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.txAmount,
+                { color: tx.amount >= 0 ? colors.success : colors.text },
+              ]}>
+              {tx.amount >= 0 ? '+' : ''}
+              {formatCurrency(tx.amount, currency)}
             </Text>
           </View>
-          <Text
-            style={[
-              styles.txAmount,
-              { color: tx.amount >= 0 ? colors.success : colors.text },
-            ]}>
-            {tx.amount >= 0 ? '+' : ''}
-            {formatCurrency(tx.amount, currency)}
-          </Text>
-        </View>
-      ))}
+        ))
+      ) : (
+        <Text style={typography.caption}>No transactions yet. Top up to get started.</Text>
+      )}
 
       <Modal visible={Boolean(modal)} transparent animationType="fade" onRequestClose={close}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={typography.h3}>
-              {modal === 'deposit' ? 'Deposit' : modal === 'withdraw' ? 'Withdraw' : 'Transfer'}
-            </Text>
+            <Text style={typography.h3}>{modal === 'deposit' ? 'Top up wallet' : 'Withdraw'}</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
@@ -120,16 +159,35 @@ export default function WalletScreen() {
               style={styles.input}
               placeholderTextColor={colors.muted}
             />
-            {modal === 'transfer' ? (
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder="Note / recipient"
-                style={styles.input}
-                placeholderTextColor={colors.muted}
-              />
-            ) : null}
-            <PrimaryButton label="Confirm" onPress={submit} />
+            <Text style={styles.fieldLabel}>Network</Text>
+            <View style={styles.networkRow}>
+              {getMomoNetworks().map((item) => {
+                const active = network === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setNetwork(item.id)}
+                    style={[styles.networkChip, active && styles.networkChipActive]}>
+                    <Text style={[styles.networkText, active && styles.networkTextActive]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholder="MoMo number"
+              style={styles.input}
+              placeholderTextColor={colors.muted}
+            />
+            <PrimaryButton
+              label={submitting ? 'Processing…' : 'Confirm'}
+              onPress={submit}
+              disabled={submitting}
+            />
             <PrimaryButton label="Cancel" variant="ghost" onPress={close} style={{ marginTop: 8 }} />
           </View>
         </View>
@@ -155,6 +213,7 @@ const styles = StyleSheet.create({
   },
   balanceLabel: { color: '#7BA3FF', fontWeight: '600' },
   balanceValue: { color: colors.white, fontSize: 32, fontWeight: '800', marginTop: 8 },
+  balanceHint: { color: 'rgba(255,255,255,0.7)', marginTop: 8, fontSize: 12 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   actionBtn: {
     flex: 1,
@@ -194,6 +253,19 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
   },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
+  networkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  networkChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  networkChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  networkText: { fontSize: 11, fontWeight: '700', color: colors.muted },
+  networkTextActive: { color: colors.white },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

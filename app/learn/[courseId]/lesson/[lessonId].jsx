@@ -19,10 +19,13 @@ import { useAppState } from '@/context/AppState';
 import {
   fetchCourseFull,
   fetchCoursePreview,
+  fetchLessonDownload,
   flattenCourseLessons,
   updateCourseProgress,
 } from '@/utils/catalog';
+import { API_BASE } from '@/constants/api';
 import { getCachedCourseFull } from '@/utils/courseCache';
+import { openExternalUrl } from '@/utils/openUrl';
 
 export default function LessonScreen() {
   const { courseId, lessonId } = useLocalSearchParams();
@@ -251,6 +254,29 @@ export default function LessonScreen() {
             disabled={done || lesson.isLocked}
             style={{ marginTop: spacing.lg }}
           />
+
+          {token && token !== 'local' && !lesson.isLocked && lesson.videoUrl ? (
+            <PrimaryButton
+              label="Download for offline"
+              variant="ghost"
+              style={{ marginTop: spacing.sm }}
+              onPress={async () => {
+                try {
+                  const data = await fetchLessonDownload(courseKey, lesson.id, token);
+                  const origin = API_BASE.replace(/\/api\/?$/, '');
+                  const path = data.streamPath || data.url || '';
+                  if (!path) throw new Error('No download URL returned.');
+                  const url = path.startsWith('http') ? path : `${origin}${path}`;
+                  await openExternalUrl(url);
+                } catch (error) {
+                  Alert.alert(
+                    'Download unavailable',
+                    error.message || 'Requires Premium/Diamond or course purchase.'
+                  );
+                }
+              }}
+            />
+          ) : null}
 
           {next ? (
             <PrimaryButton

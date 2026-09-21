@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { FilterChips } from '@/components/ui/FilterChips';
@@ -7,7 +7,8 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { getTutorById } from '@/data/tutors';
+import { fetchTutorProfile } from '@/utils/catalog';
+import { tutorWithBookingOptions } from '@/utils/bookingDefaults';
 import { formatCurrency, formatPriceCedi } from '@/utils/format';
 
 const DURATIONS = [
@@ -32,19 +33,50 @@ export default function BookingScreen() {
   const { tutorId, service: serviceParam } = useLocalSearchParams();
   const router = useRouter();
   const { createBooking, walletBalance, currency } = useAppState();
-  const tutor = getTutorById(String(tutorId));
+  const [loading, setLoading] = useState(true);
+  const [tutor, setTutor] = useState(null);
 
   const [step, setStep] = useState(0);
-  const [serviceId, setServiceId] = useState(serviceParam || tutor?.services?.[0]?.id);
+  const [serviceId, setServiceId] = useState(null);
   const [date, setDate] = useState(nextDates()[0]);
-  const [time, setTime] = useState(tutor?.availableSlots?.[0]);
+  const [time, setTime] = useState(null);
   const [duration, setDuration] = useState('60');
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetchTutorProfile(String(tutorId))
+      .then((profile) => {
+        if (!alive) return;
+        const withOptions = tutorWithBookingOptions(profile);
+        setTutor(withOptions);
+        setServiceId(String(serviceParam || withOptions.services[0]?.id));
+        setTime(withOptions.availableSlots[0]);
+      })
+      .catch(() => {
+        if (alive) setTutor(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tutorId, serviceParam]);
 
   const service = useMemo(
     () => tutor?.services?.find((s) => s.id === serviceId),
     [tutor, serviceId]
   );
   const dates = useMemo(() => nextDates(), []);
+
+  if (loading) {
+    return (
+      <Screen scroll={false} contentStyle={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+      </Screen>
+    );
+  }
 
   if (!tutor) {
     return (
@@ -56,9 +88,10 @@ export default function BookingScreen() {
 
   const price = service?.price || 0;
 
-  const confirm = () => {
-    const booking = createBooking({
+  const confirm = async () => {
+    const booking = await createBooking({
       tutorId: tutor.id,
+      tutorName: tutor.name,
       serviceId: service.id,
       serviceName: service.name,
       date,
@@ -72,7 +105,7 @@ export default function BookingScreen() {
     }
     Alert.alert(
       'Booking confirmed',
-      `${tutor.name} will be notified (mock). Reminder set before ${date} ${time}.`,
+      `${tutor.name} will be notified. Reminder set before ${date} ${time}.`,
       [{ text: 'My bookings', onPress: () => router.replace('/bookings') }]
     );
   };
@@ -178,6 +211,11 @@ function SummaryRow({ label, value }) {
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   steps: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xl },
   stepPill: {
     paddingHorizontal: spacing.sm,

@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { CreatorAccessGate, CreatorHubNav } from '@/components/creator/CreatorHubNav';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChips } from '@/components/ui/FilterChips';
@@ -134,7 +135,6 @@ export default function CreatorCoursesScreen() {
   if (syncing) {
     return (
       <View style={styles.center}>
-        <Stack.Screen options={{ title: 'My teaching courses' }} />
         <ActivityIndicator color={colors.primary} />
         <Text style={styles.syncText}>Checking creator access...</Text>
       </View>
@@ -143,25 +143,27 @@ export default function CreatorCoursesScreen() {
 
   if (!approved) {
     return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: 'My teaching courses' }} />
-        <EmptyState
-          icon="lock"
-          title="Creator access required"
-          subtitle={
-            user?.creatorStatus === 'approved' && user?.role !== 'tutor'
-              ? 'Your account is approved but still syncing tutor role. Pull to refresh or sign out and back in.'
-              : 'Complete creator onboarding and get approved before you can manage courses.'
-          }
-        />
-        <PrimaryButton label="Creator onboarding" onPress={() => router.push('/programs')} style={{ marginTop: spacing.lg }} />
+      <View style={styles.root}>
+        <CreatorHubNav />
+        <View style={styles.center}>
+          <EmptyState
+            icon="lock"
+            title="Creator access required"
+            subtitle={
+              user?.creatorStatus === 'approved' && user?.role !== 'tutor'
+                ? 'Your account is approved but still syncing tutor role. Pull to refresh or sign out and back in.'
+                : 'Complete creator onboarding and get approved before you can manage courses.'
+            }
+          />
+          <PrimaryButton label="Creator onboarding" onPress={() => router.push('/programs')} style={{ marginTop: spacing.lg }} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.root}>
-      <Stack.Screen options={{ title: 'My teaching courses' }} />
+      <CreatorHubNav />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface },
   center: { flex: 1, backgroundColor: colors.surface, justifyContent: 'center' },
   syncText: { marginTop: spacing.md, color: colors.muted, fontSize: 13 },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
   lede: { color: colors.muted, fontSize: 14, lineHeight: 20 },
   filters: { marginTop: spacing.sm },
   error: { color: colors.danger, fontSize: 13, fontWeight: '600' },

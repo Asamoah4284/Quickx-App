@@ -4,13 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
 
-export function Screen({ children, scroll = true, style, contentStyle }) {
+export function Screen({ children, scroll = true, style, contentStyle, refreshControl }) {
   const body = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.content, contentStyle]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       directionalLockEnabled
+      refreshControl={refreshControl}
       bounces>
       {children}
     </ScrollView>

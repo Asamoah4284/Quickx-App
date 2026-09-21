@@ -1,4 +1,5 @@
 import { api } from '@/constants/api';
+import { completeMoolrePayment, detectMomoNetwork } from '@/utils/moolre';
 
 function asList(data) {
   if (Array.isArray(data)) return data;
@@ -58,23 +59,25 @@ export async function fetchMyProgramEnrollments(token) {
   return asList(data).map(mapEnrollment);
 }
 
-export async function joinProgram({ token, programId, amount, phone, email }) {
+export async function joinProgram({ token, programId, amount, phone, email, network, otpcode, sessionid, onPending }) {
   const momo = String(phone || '').replace(/\D/g, '');
   const normalized = momo.length === 10 && momo.startsWith('0') ? momo : `0${momo.slice(-9)}`;
-  return api('/payments/initialize-program', {
-    method: 'POST',
+  return completeMoolrePayment({
     token,
     body: {
-      programId,
+      itemType: 'program',
+      itemId: programId,
       amount,
       transactionId: `qx_prog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      paymentMethod: 'direct',
       momoNumber: normalized,
+      network: network || detectMomoNetwork(normalized),
       shippingAddress: {
         email: email || `${normalized}@phone.quickxlearn.com`,
         phone: normalized,
       },
-      currency: 'GHS',
+      otpcode,
+      sessionid,
     },
+    onPending,
   });
 }

@@ -1,4 +1,5 @@
 import { api } from '@/constants/api';
+import { completeMoolrePayment, detectMomoNetwork } from '@/utils/moolre';
 
 export const SUBSCRIPTION_PLANS = [
   {
@@ -90,25 +91,31 @@ export async function subscribeToTutor({
   amount,
   phone,
   email,
+  network,
+  otpcode,
+  sessionid,
+  onPending,
 }) {
   const momo = String(phone || '').replace(/\D/g, '');
   const normalized = momo.length === 10 && momo.startsWith('0') ? momo : `0${momo.slice(-9)}`;
-  return api('/payments/initialize-creator-subscription', {
-    method: 'POST',
+  return completeMoolrePayment({
     token,
     body: {
-      instructorId,
+      itemType: 'creator_subscription',
+      itemId: instructorId,
       planId,
       amount: Math.max(0.01, Number(amount) || 0),
       transactionId: `qx_sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      paymentMethod: 'direct',
       momoNumber: normalized,
+      network: network || detectMomoNetwork(normalized),
       shippingAddress: {
         email: email || `${normalized}@phone.quickxlearn.com`,
         phone: normalized,
       },
-      currency: 'GHS',
+      otpcode,
+      sessionid,
     },
+    onPending,
   });
 }
 
@@ -118,31 +125,47 @@ export async function fetchCommunityPosts(tutorId, token, { roomId } = {}) {
   params.set('limit', '40');
   const q = params.toString();
   const data = await api(`/community/${tutorId}/posts?${q}`, { token });
-  return asList(data, 'posts').map((post) => ({
-    id: String(post._id || post.id),
-    type: post.type || 'post',
-    body: post.body || '',
-    media: Array.isArray(post.media)
-      ? post.media
-          .filter((m) => m?.url)
-          .map((m) => ({
-            url: String(m.url),
-            type: String(m.type || 'image').toLowerCase(),
-            name: m.name || '',
-          }))
-      : [],
-    likeCount: Number(post.likeCount || 0),
-    commentCount: Number(post.commentCount || 0),
-    likedByMe: Boolean(post.likedByMe),
-    pinned: Boolean(post.pinned),
-    createdAt: post.createdAt,
-    author: {
-      id: String(post.authorId?._id || post.authorId || ''),
-      name: post.authorId?.fullName || 'Member',
-      avatar: post.authorId?.profilePicture || '',
-      role: post.authorId?.role || 'student',
-    },
-  }));
+  return asList(data, 'posts').map((post) => {
+    const pollRaw = post.pollId && typeof post.pollId === 'object' ? post.pollId : null;
+    return {
+      id: String(post._id || post.id),
+      type: post.type || 'post',
+      body: post.body || '',
+      media: Array.isArray(post.media)
+        ? post.media
+            .filter((m) => m?.url)
+            .map((m) => ({
+              url: String(m.url),
+              type: String(m.type || 'image').toLowerCase(),
+              name: m.name || '',
+            }))
+        : [],
+      likeCount: Number(post.likeCount || 0),
+      commentCount: Number(post.commentCount || 0),
+      likedByMe: Boolean(post.likedByMe),
+      pinned: Boolean(post.pinned),
+      featured: Boolean(post.featured),
+      createdAt: post.createdAt,
+      poll: pollRaw
+        ? {
+            id: String(pollRaw._id || pollRaw.id),
+            question: pollRaw.question || post.body || '',
+            closed: Boolean(pollRaw.closed),
+            options: (pollRaw.options || []).map((opt, index) => ({
+              index,
+              text: opt.text || '',
+              voteCount: Number(opt.voteCount || 0),
+            })),
+          }
+        : null,
+      author: {
+        id: String(post.authorId?._id || post.authorId || ''),
+        name: post.authorId?.fullName || 'Member',
+        avatar: post.authorId?.profilePicture || '',
+        role: post.authorId?.role || 'student',
+      },
+    };
+  });
 }
 
 export async function likeCommunityPost(tutorId, postId, token) {
@@ -248,6 +271,32 @@ export async function fetchCommunityResources(tutorId, token) {
   }));
 }
 
+export async function submitCommunityReport(tutorId, token, { entityType, entityId, reason }) {
+  return api(`/community/${tutorId}/reports`, {
+    method: 'POST',
+    token,
+    body: { entityType, entityId, reason },
+  });
+}
+
+export async function fetchCommunityRooms(tutorId, token) {
+  const data = await api(`/community/${tutorId}/rooms`, { token });
+  return asList(data, 'rooms').map((r) => ({
+    id: String(r._id || r.id),
+    name: r.name || 'Room',
+    archived: Boolean(r.archived),
+  }));
+}
+
+export async function fetchCommunityBadges(tutorId, token) {
+  const data = await api(`/community/${tutorId}/badges`, { token });
+  return asList(data, 'badges').map((b) => ({
+    key: b.key || b.badgeKey || '',
+    label: b.label || b.name || b.key || 'Badge',
+    earnedAt: b.earnedAt || b.createdAt,
+  }));
+}
+
 export async function fetchMentorships() {
   const data = await api('/mentorships');
   return asList(data).map((m) => ({
@@ -261,4 +310,96 @@ export async function fetchMentorships() {
     icon: m.icon || 'users',
     imageUrl: m.imageUrl || '',
   }));
+}
+
+export async function voteCommunityPoll(tutorId, pollId, token, optionIndex) {
+  const data = await api(`/community/${tutorId}/polls/${pollId}/vote`, {
+    method: 'POST',
+    token,
+    body: { optionIndex },
+  });
+  const poll = data.poll || data;
+  return {
+    id: String(poll._id || poll.id),
+    question: poll.question || '',
+    closed: Boolean(poll.closed),
+    options: (poll.options || []).map((opt, index) => ({
+      index,
+      text: opt.text || '',
+      voteCount: Number(opt.voteCount || 0),
+    })),
+  };
+}
+
+export async function fetchCommunityLeaderboard(tutorId, token) {
+  const data = await api(`/community/${tutorId}/leaderboard`, { token });
+  return asList(data, 'leaderboard').map((row, index) => ({
+    rank: index + 1,
+    userId: String(row.userId?._id || row.userId || row._id || ''),
+    name: row.userId?.fullName || row.fullName || 'Member',
+    xp: Number(row.xp || row.totalXp || 0),
+    avatar: row.userId?.profilePicture || row.profilePicture || '',
+  }));
+}
+
+export async function fetchCommunityConversations(tutorId, token) {
+  const data = await api(`/community/${tutorId}/conversations`, { token });
+  return asList(data, 'conversations').map((c) => ({
+    id: String(c._id || c.id),
+    title: c.title || '',
+    isGroup: Boolean(c.isGroup),
+    lastMessageAt: c.lastMessageAt || c.updatedAt || null,
+    participants: (c.participantIds || []).map((p) => ({
+      id: String(p._id || p.id || p),
+      name: p.fullName || 'Member',
+      avatar: p.profilePicture || '',
+    })),
+  }));
+}
+
+export async function fetchConversationMessages(tutorId, conversationId, token) {
+  const data = await api(`/community/${tutorId}/conversations/${conversationId}/messages`, { token });
+  return asList(data, 'messages').map((m) => ({
+    id: String(m._id || m.id),
+    body: m.body || '',
+    createdAt: m.createdAt,
+    author: {
+      id: String(m.senderId?._id || m.senderId || m.authorId?._id || ''),
+      name: m.senderId?.fullName || m.authorId?.fullName || 'Member',
+    },
+  }));
+}
+
+export async function sendConversationMessage(tutorId, conversationId, token, body) {
+  return api(`/community/${tutorId}/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    token,
+    body: { body: String(body || '').trim() },
+  });
+}
+
+export async function startTutorConversation(tutorId, token) {
+  const data = await api(`/community/${tutorId}/conversations`, {
+    method: 'POST',
+    token,
+    body: { participantIds: [tutorId], isGroup: false },
+  });
+  const c = data.conversation || data;
+  return String(c._id || c.id);
+}
+
+export async function searchCommunity(tutorId, token, query) {
+  const q = encodeURIComponent(String(query || '').trim());
+  if (!q) return { posts: [], questions: [] };
+  const data = await api(`/community/${tutorId}/search?q=${q}`, { token });
+  return {
+    posts: asList(data, 'posts').map((post) => ({
+      id: String(post._id || post.id),
+      body: post.body || '',
+    })),
+    questions: asList(data, 'questions').map((item) => ({
+      id: String(item._id || item.id),
+      title: item.title || item.body || 'Question',
+    })),
+  };
 }

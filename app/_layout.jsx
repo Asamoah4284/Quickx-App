@@ -117,10 +117,17 @@ function RootNav() {
         <Stack.Screen name="trading" options={{ title: 'AI Trading' }} />
         <Stack.Screen name="bookings/index" options={{ title: 'My Bookings' }} />
         <Stack.Screen name="my-courses/index" options={{ title: 'My courses' }} />
+        <Stack.Screen name="saved-courses/index" options={{ title: 'Saved courses' }} />
+        <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
+        <Stack.Screen name="referrals/index" options={{ title: 'Referrals' }} />
         <Stack.Screen name="programs/index" options={{ title: 'Creator onboarding' }} />
         <Stack.Screen name="programs/[slug]" options={{ title: 'Program' }} />
-        <Stack.Screen name="creator/courses/index" options={{ title: 'My teaching courses' }} />
-        <Stack.Screen name="creator/courses/[courseId]" options={{ title: 'Edit course' }} />
+        <Stack.Screen name="book/[id]" options={{ title: 'Book' }} />
+        <Stack.Screen name="book/[id]/read" options={{ title: 'Read' }} />
+        <Stack.Screen name="book/cart" options={{ title: 'Cart' }} />
+        <Stack.Screen name="analysis/index" options={{ title: 'Analysis' }} />
+        <Stack.Screen name="analysis/premium" options={{ title: 'Premium analysis' }} />
+        <Stack.Screen name="creator" options={{ headerShown: false }} />
         <Stack.Screen name="communities/index" options={{ title: 'Communities' }} />
         <Stack.Screen name="community/[tutorId]/index" options={{ title: 'Community' }} />
         <Stack.Screen name="subscribe/[tutorId]" options={{ title: 'Subscribe' }} />

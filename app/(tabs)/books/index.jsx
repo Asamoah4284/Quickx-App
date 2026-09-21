@@ -1,5 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +16,7 @@ import { BookCard } from '@/components/ui/BookCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { colors, radii, spacing } from '@/constants/theme';
+import { useAppState } from '@/context/AppState';
 import { fetchBooks } from '@/utils/catalog';
 
 const TYPE_FILTERS = [
@@ -24,6 +26,8 @@ const TYPE_FILTERS = [
 ];
 
 export default function BooksScreen() {
+  const router = useRouter();
+  const { cartBookIds } = useAppState();
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
   const [books, setBooks] = useState([]);
@@ -70,8 +74,20 @@ export default function BooksScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Marketplace</Text>
-          <Text style={styles.title}>Books</Text>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.eyebrow}>Marketplace</Text>
+              <Text style={styles.title}>Books</Text>
+            </View>
+            <Pressable style={styles.cartBtn} onPress={() => router.push('/book/cart')}>
+              <FontAwesome name="shopping-cart" size={18} color={colors.text} />
+              {cartBookIds.length ? (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartBookIds.length}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
           <Text style={styles.lede}>
             Premium reads from QuickX creators — digital downloads and hardcopy editions, curated for learners.
           </Text>
@@ -155,6 +171,35 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     marginBottom: spacing.lg,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  cartBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    marginTop: spacing.sm,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   eyebrow: {
     color: colors.primary,
     fontSize: 11,

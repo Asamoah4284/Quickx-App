@@ -1,20 +1,23 @@
-import { Alert, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { Alert, ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
+import { PaymentCheckout } from '@/components/checkout/PaymentCheckout';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { fetchCoursePreview } from '@/utils/catalog';
-import { formatCurrency, formatPriceCedi } from '@/utils/format';
+import { initializePurchase, repairCourseAccess } from '@/utils/payments';
+import { invalidatePurchasedCoursesCache } from '@/utils/courseCache';
 
 export default function CheckoutScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { walletBalance, currency, enrollCourse, isEnrolled } = useAppState();
+  const { token, user, grantCourseAccess, isEnrolled } = useAppState();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -35,8 +38,8 @@ export default function CheckoutScreen() {
 
   if (loading) {
     return (
-      <Screen>
-        <ActivityIndicator color={colors.primary} />
+      <Screen scroll={false} contentStyle={styles.center}>
+        <ActivityIndicator />
       </Screen>
     );
   }
@@ -45,6 +48,19 @@ export default function CheckoutScreen() {
     return (
       <Screen>
         <Text>Course not found.</Text>
+      </Screen>
+    );
+  }
+
+  if (course.price <= 0) {
+    return (
+      <Screen>
+        <Text style={typography.h2}>Free course</Text>
+        <PrimaryButton
+          label="Open learning area"
+          onPress={() => router.replace(`/learn/${course.id}`)}
+          style={{ marginTop: spacing.xl }}
+        />
       </Screen>
     );
   }
@@ -62,66 +78,60 @@ export default function CheckoutScreen() {
     );
   }
 
-  const onPay = () => {
-    const ok = enrollCourse(course.id, course.price, course.title);
-    if (!ok) {
-      Alert.alert('Insufficient balance', 'Deposit funds in QuickX Wallet and try again.');
-      return;
+  if (!token || token === 'local') {
+    return (
+      <Screen>
+        <Text style={typography.h2}>Sign in required</Text>
+        <Text style={{ marginTop: spacing.sm, color: '#64748b' }}>
+          Sign in with your phone to purchase this course.
+        </Text>
+      </Screen>
+    );
+  }
+
+  const onPay = async ({ phone, email, amount, referralCode }) => {
+    setPaying(true);
+    try {
+      await initializePurchase({
+        token,
+        itemType: 'course',
+        itemId: course.id,
+        amount,
+        phone,
+        email,
+        referralCode,
+      });
+      grantCourseAccess(course.id);
+      invalidatePurchasedCoursesCache();
+      try {
+        await repairCourseAccess(token);
+      } catch {
+        // non-blocking
+      }
+      Alert.alert('Payment successful', 'You now have full access to this course.', [
+        { text: 'Start learning', onPress: () => router.replace(`/learn/${course.id}`) },
+      ]);
+    } catch (error) {
+      Alert.alert('Payment failed', error.message || 'Please try again.');
+    } finally {
+      setPaying(false);
     }
-    Alert.alert('Success', 'Enrollment confirmed. Happy learning!', [
-      { text: 'Start learning', onPress: () => router.replace(`/learn/${course.id}`) },
-    ]);
   };
 
   return (
     <Screen>
-      <Text style={typography.h2}>Checkout</Text>
-      <Text style={[typography.caption, { marginTop: spacing.sm }]}>{course.title}</Text>
-
-      <View style={styles.card}>
-        <Row label="Course price" value={formatPriceCedi(course.price)} />
-        <Row label="Wallet balance" value={formatCurrency(walletBalance, currency)} />
-        <Row
-          label="After payment"
-          value={formatCurrency(Math.max(0, walletBalance - course.price), currency)}
-        />
-      </View>
-
-      <Text style={[typography.caption, { marginBottom: spacing.lg }]}>
-        Payment is simulated with your QuickX Wallet for now.
-      </Text>
-
-      <PrimaryButton label={`Pay ${formatPriceCedi(course.price)}`} onPress={onPay} />
-      <PrimaryButton
-        label="Top up wallet"
-        variant="secondary"
-        onPress={() => router.push('/wallet')}
-        style={{ marginTop: spacing.sm }}
+      <PaymentCheckout
+        title="Checkout"
+        subtitle={course.title}
+        price={course.price}
+        user={user}
+        paying={paying}
+        onPay={onPay}
       />
     </Screen>
   );
 }
 
-function Row({ label, value }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  card: {
-    marginVertical: spacing.xl,
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  label: { color: colors.muted },
-  value: { fontWeight: '700', color: colors.text },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

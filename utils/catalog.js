@@ -235,6 +235,37 @@ export async function fetchBookPreview(id) {
   return mapBook(data);
 }
 
+export async function fetchBookOffers(id) {
+  const data = await api(`/books/${id}/offers`);
+  const group = data?.offerGroup;
+  if (!group) return null;
+  return {
+    id: String(group._id || group.id),
+    title: group.title || 'Bundle options',
+    options: (group.options || []).map((opt) => ({
+      id: String(opt._id || opt.id),
+      label: opt.label || opt.name || 'Option',
+      price: Number(opt.price || 0),
+      description: opt.description || '',
+      bookIds: (opt.bookIds || []).map(String),
+    })),
+  };
+}
+
+export async function fetchBookContent(id, token) {
+  const data = await api(`/books/${id}/content`, { token });
+  return {
+    ...mapBook(data),
+    fileUrl: data.fileUrl || '',
+    whatYoullLearn: data.whatYoullLearn || [],
+    afterReadingOutcomes: data.afterReadingOutcomes || [],
+  };
+}
+
+export async function fetchLessonDownload(courseId, lessonId, token) {
+  return api(`/courses/${courseId}/lessons/${lessonId}/download`, { token });
+}
+
 export async function fetchPurchasedCourses(token, { force = false } = {}) {
   if (!force) {
     const cached = getCachedPurchasedCourses();

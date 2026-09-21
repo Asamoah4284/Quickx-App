@@ -45,6 +45,10 @@ export function setCachedPurchasedCourses(list) {
   purchasedCache = { list: Array.isArray(list) ? list : [], at: Date.now() };
 }
 
+export function invalidatePurchasedCoursesCache() {
+  purchasedCache = null;
+}
+
 /** Dedupe concurrent /full fetches for the same course. */
 export async function withCourseFullInflight(courseId, loader) {
   const key = String(courseId);

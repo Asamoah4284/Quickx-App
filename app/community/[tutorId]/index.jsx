@@ -23,15 +23,25 @@ import {
   askCommunityQuestion,
   createCommunityPost,
   createPostComment,
+  fetchCommunityConversations,
+  fetchCommunityLeaderboard,
   fetchCommunityLiveSessions,
   fetchCommunityPosts,
   fetchCommunityQuestions,
   fetchCommunityResources,
   fetchCommunityStats,
+  fetchCommunityRooms,
+  fetchCommunityBadges,
+  submitCommunityReport,
+  fetchConversationMessages,
   fetchPostComments,
   fetchTutorSubscriptionMe,
   likeCommunityPost,
+  searchCommunity,
+  sendConversationMessage,
+  startTutorConversation,
   unlikeCommunityPost,
+  voteCommunityPoll,
 } from '@/utils/community';
 import { isOpenableUrl, openExternalUrl } from '@/utils/openUrl';
 
@@ -40,6 +50,11 @@ const TABS = [
   { id: 'ask', label: 'Q&A', icon: 'question-circle' },
   { id: 'live', label: 'Live', icon: 'video-camera' },
   { id: 'resources', label: 'Files', icon: 'folder-open' },
+  { id: 'rooms', label: 'Rooms', icon: 'th-large' },
+  { id: 'badges', label: 'Badges', icon: 'certificate' },
+  { id: 'leaderboard', label: 'Ranks', icon: 'trophy' },
+  { id: 'messages', label: 'DMs', icon: 'envelope' },
+  { id: 'search', label: 'Search', icon: 'search' },
 ];
 
 function PostMedia({ media, onOpenImage }) {
@@ -86,6 +101,8 @@ function CommunityPostCard({
   onToggleComments,
   onSubmitComment,
   onLike,
+  onVotePoll,
+  onReport,
   commenting,
   onOpenImage,
 }) {
@@ -95,6 +112,21 @@ function CommunityPostCard({
       {post.type === 'announcement' ? <Text style={styles.announce}>Announcement</Text> : null}
       <Text style={styles.author}>{post.author.name}</Text>
       {post.body ? <Text style={styles.body}>{post.body}</Text> : null}
+      {post.poll ? (
+        <View style={styles.pollBox}>
+          <Text style={styles.pollQuestion}>{post.poll.question}</Text>
+          {post.poll.options.map((opt) => (
+            <Pressable
+              key={opt.index}
+              style={styles.pollOption}
+              onPress={() => onVotePoll?.(post, opt.index)}
+              disabled={post.poll.closed}>
+              <Text style={styles.pollOptionText}>{opt.text}</Text>
+              <Text style={styles.pollVotes}>{opt.voteCount}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <PostMedia media={post.media} onOpenImage={onOpenImage} />
 
       <View style={styles.row}>
@@ -111,6 +143,10 @@ function CommunityPostCard({
           <Text style={[styles.chipText, expanded && { color: colors.primary }]}>
             {post.commentCount} {post.commentCount === 1 ? 'comment' : 'comments'}
           </Text>
+        </Pressable>
+        <Pressable style={styles.chip} onPress={() => onReport?.(post)}>
+          <FontAwesome name="flag-o" size={12} color={colors.muted} />
+          <Text style={styles.chipText}>Report</Text>
         </Pressable>
         <Text style={styles.time}>
           {post.createdAt ? new Date(post.createdAt).toLocaleString() : ''}
@@ -169,6 +205,15 @@ export default function CommunityHubScreen() {
   const [questions, setQuestions] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [resources, setResources] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageDraft, setMessageDraft] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [composer, setComposer] = useState('');
@@ -180,6 +225,9 @@ export default function CommunityHubScreen() {
   const [loadingComments, setLoadingComments] = useState({});
   const [commentingId, setCommentingId] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [reportPost, setReportPost] = useState(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   const title = useMemo(
     () => (stats?.tutor?.fullName ? `${stats.tutor.fullName}'s community` : 'Community'),
@@ -202,16 +250,24 @@ export default function CommunityHubScreen() {
         setStats(null);
       }
       if (me?.canAccessCommunity) {
-        const [p, q, s, r] = await Promise.all([
+        const [p, q, s, r, lb, conv, roomList, badgeList] = await Promise.all([
           fetchCommunityPosts(id, token).catch(() => []),
           fetchCommunityQuestions(id, token).catch(() => []),
           fetchCommunityLiveSessions(id, token).catch(() => []),
           fetchCommunityResources(id, token).catch(() => []),
+          fetchCommunityLeaderboard(id, token).catch(() => []),
+          fetchCommunityConversations(id, token).catch(() => []),
+          fetchCommunityRooms(id, token).catch(() => []),
+          fetchCommunityBadges(id, token).catch(() => []),
         ]);
         setPosts(p);
         setQuestions(q);
         setSessions(s.filter((x) => !x.cancelled));
         setResources(r);
+        setLeaderboard(lb);
+        setConversations(conv);
+        setRooms(roomList);
+        setBadges(badgeList);
       }
     } catch (err) {
       setAccess({ subscribed: false, canAccessCommunity: false, error: err.message });
@@ -329,6 +385,83 @@ export default function CommunityHubScreen() {
     }
   };
 
+  const onVotePoll = async (post, optionIndex) => {
+    if (!post.poll) return;
+    try {
+      const updated = await voteCommunityPoll(id, post.poll.id, token, optionIndex);
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, poll: updated } : p))
+      );
+    } catch (err) {
+      Alert.alert('Could not vote', err.message || 'Try again.');
+    }
+  };
+
+  const onReport = (post) => {
+    setReportPost(post);
+    setReportReason('');
+  };
+
+  const submitReport = async () => {
+    if (!reportPost || !reportReason.trim()) return;
+    setReporting(true);
+    try {
+      await submitCommunityReport(id, token, {
+        entityType: 'post',
+        entityId: reportPost.id,
+        reason: reportReason.trim(),
+      });
+      setReportPost(null);
+      setReportReason('');
+      Alert.alert('Reported', 'Thanks — moderators will review this.');
+    } catch (err) {
+      Alert.alert('Could not report', err.message || 'Try again.');
+    } finally {
+      setReporting(false);
+    }
+  };
+
+  const openConversation = async (conversationId) => {
+    setActiveConversation(conversationId);
+    try {
+      setMessages(await fetchConversationMessages(id, conversationId, token));
+    } catch {
+      setMessages([]);
+    }
+  };
+
+  const onSendMessage = async () => {
+    if (!activeConversation || !messageDraft.trim()) return;
+    try {
+      await sendConversationMessage(id, activeConversation, token, messageDraft);
+      setMessageDraft('');
+      setMessages(await fetchConversationMessages(id, activeConversation, token));
+    } catch (err) {
+      Alert.alert('Could not send', err.message || 'Try again.');
+    }
+  };
+
+  const onStartTutorChat = async () => {
+    try {
+      const conversationId = await startTutorConversation(id, token);
+      await openConversation(conversationId);
+      setTab('messages');
+      const conv = await fetchCommunityConversations(id, token);
+      setConversations(conv);
+    } catch (err) {
+      Alert.alert('Could not start chat', err.message || 'Try again.');
+    }
+  };
+
+  const onSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      setSearchResults(await searchCommunity(id, token, searchQuery));
+    } catch {
+      setSearchResults({ posts: [], questions: [] });
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.root}>
@@ -384,7 +517,7 @@ export default function CommunityHubScreen() {
           </Text>
         </View>
 
-        <View style={styles.tabs}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {TABS.map((t) => {
             const active = tab === t.id;
             return (
@@ -397,7 +530,7 @@ export default function CommunityHubScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
         {tab === 'feed' ? (
           <>
@@ -427,6 +560,8 @@ export default function CommunityHubScreen() {
                   onToggleComments={onToggleComments}
                   onSubmitComment={onSubmitComment}
                   onLike={onLike}
+                  onVotePoll={onVotePoll}
+                  onReport={onReport}
                   commenting={commentingId === post.id}
                   onOpenImage={setPreviewUrl}
                 />
@@ -525,6 +660,124 @@ export default function CommunityHubScreen() {
             <EmptyState icon="folder-open" title="No resources" subtitle="Shared files and links appear here." />
           )
         ) : null}
+
+        {tab === 'rooms' ? (
+          rooms.length ? (
+            rooms.map((room) => (
+              <View key={room.id} style={styles.card}>
+                <Text style={styles.author}>{room.name}</Text>
+                <Text style={styles.meta}>{room.archived ? 'Archived' : 'Active room'}</Text>
+              </View>
+            ))
+          ) : (
+            <EmptyState icon="th-large" title="No rooms yet" subtitle="Discussion rooms created by the tutor appear here." />
+          )
+        ) : null}
+
+        {tab === 'badges' ? (
+          badges.length ? (
+            badges.map((badge) => (
+              <View key={badge.key} style={styles.card}>
+                <Text style={styles.author}>{badge.label}</Text>
+                <Text style={styles.meta}>
+                  {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Earned'}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <EmptyState icon="certificate" title="No badges yet" subtitle="Participate in the community to earn badges." />
+          )
+        ) : null}
+
+        {tab === 'leaderboard' ? (
+          leaderboard.length ? (
+            leaderboard.map((row) => (
+              <View key={row.userId} style={styles.card}>
+                <Text style={styles.author}>
+                  #{row.rank} {row.name}
+                </Text>
+                <Text style={styles.meta}>{row.xp} XP</Text>
+              </View>
+            ))
+          ) : (
+            <EmptyState icon="trophy" title="No leaderboard yet" subtitle="Earn XP by participating in the community." />
+          )
+        ) : null}
+
+        {tab === 'messages' ? (
+          <>
+            <PrimaryButton label="Message tutor" variant="secondary" onPress={onStartTutorChat} />
+            {conversations.length ? (
+              conversations.map((c) => (
+                <Pressable key={c.id} style={styles.card} onPress={() => openConversation(c.id)}>
+                  <Text style={styles.author}>
+                    {c.title ||
+                      c.participants.map((p) => p.name).filter(Boolean).slice(0, 3).join(', ') ||
+                      'Conversation'}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString() : 'Tap to open'}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <EmptyState icon="envelope" title="No messages yet" subtitle="Start a conversation with the tutor." />
+            )}
+            {activeConversation ? (
+              <View style={styles.commentsBox}>
+                {messages.map((m) => (
+                  <View key={m.id} style={styles.commentRow}>
+                    <Text style={styles.commentAuthor}>{m.author.name}</Text>
+                    <Text style={styles.commentBody}>{m.body}</Text>
+                  </View>
+                ))}
+                <View style={styles.commentComposer}>
+                  <TextInput
+                    value={messageDraft}
+                    onChangeText={setMessageDraft}
+                    placeholder="Write a message…"
+                    placeholderTextColor={colors.muted}
+                    style={styles.commentInput}
+                    multiline
+                  />
+                  <PrimaryButton label="Send" onPress={onSendMessage} disabled={!messageDraft.trim()} />
+                </View>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {tab === 'search' ? (
+          <>
+            <View style={styles.composer}>
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search posts and questions…"
+                placeholderTextColor={colors.muted}
+                style={[styles.input, { minHeight: 44 }]}
+              />
+              <PrimaryButton label="Search" onPress={onSearch} />
+            </View>
+            {searchResults ? (
+              <>
+                {(searchResults.posts || []).map((p) => (
+                  <View key={p.id} style={styles.card}>
+                    <Text style={styles.body}>{p.body}</Text>
+                  </View>
+                ))}
+                {(searchResults.questions || []).map((q) => (
+                  <View key={q.id} style={styles.card}>
+                    <Text style={styles.author}>{q.title}</Text>
+                  </View>
+                ))}
+                {!searchResults.posts?.length && !searchResults.questions?.length ? (
+                  <EmptyState icon="search" title="No results" subtitle="Try another search term." />
+                ) : null}
+              </>
+            ) : null}
+          </>
+        ) : null}
       </ScrollView>
 
       <Modal visible={Boolean(previewUrl)} transparent animationType="fade" onRequestClose={() => setPreviewUrl(null)}>
@@ -533,6 +786,34 @@ export default function CommunityHubScreen() {
             <Image source={{ uri: previewUrl }} style={styles.previewImage} resizeMode="contain" />
           ) : null}
         </Pressable>
+      </Modal>
+
+      <Modal visible={Boolean(reportPost)} transparent animationType="fade" onRequestClose={() => setReportPost(null)}>
+        <View style={styles.reportOverlay}>
+          <View style={styles.reportCard}>
+            <Text style={styles.reportTitle}>Report post</Text>
+            <Text style={styles.meta}>Tell us why you are reporting this post.</Text>
+            <TextInput
+              style={styles.reportInput}
+              value={reportReason}
+              onChangeText={setReportReason}
+              placeholder="Reason for report"
+              placeholderTextColor={colors.muted}
+              multiline
+            />
+            <PrimaryButton
+              label={reporting ? 'Submitting…' : 'Submit report'}
+              onPress={submitReport}
+              disabled={reporting || !reportReason.trim()}
+            />
+            <PrimaryButton
+              label="Cancel"
+              variant="ghost"
+              onPress={() => setReportPost(null)}
+              style={{ marginTop: spacing.sm }}
+            />
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -549,14 +830,14 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: colors.white, fontWeight: '800', fontSize: 18 },
   heroMeta: { color: 'rgba(255,255,255,0.65)', marginTop: 6, fontSize: 12 },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg, paddingRight: spacing.lg },
   tab: {
-    flex: 1,
     flexDirection: 'row',
     gap: 6,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: radii.full,
     backgroundColor: colors.card,
     borderWidth: StyleSheet.hairlineWidth,
@@ -605,6 +886,27 @@ const styles = StyleSheet.create({
   },
   author: { fontWeight: '800', color: colors.text, fontSize: 14 },
   body: { color: colors.text, marginTop: 6, lineHeight: 20 },
+  pollBox: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  pollQuestion: { fontWeight: '700', color: colors.text, marginBottom: 4 },
+  pollOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  pollOptionText: { flex: 1, color: colors.text, fontWeight: '600' },
+  pollVotes: { color: colors.primary, fontWeight: '800', marginLeft: spacing.sm },
   meta: { color: colors.muted, fontSize: 12, marginTop: 8 },
   mediaWrap: { marginTop: spacing.md, gap: spacing.sm },
   mediaImage: {
@@ -661,4 +963,28 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   previewImage: { width: '100%', height: '80%' },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  reportCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  reportTitle: { fontWeight: '800', fontSize: 18, color: colors.text },
+  reportInput: {
+    minHeight: 88,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.text,
+    textAlignVertical: 'top',
+    marginVertical: spacing.sm,
+  },
 });

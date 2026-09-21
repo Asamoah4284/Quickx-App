@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+
 import { CreatorStatusBadge, WizardStepper } from '@/components/creator/CreatorOnboardingParts';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -30,6 +32,8 @@ import {
   saveCreatorProfileDraft,
   submitCreatorApplication,
 } from '@/utils/creator';
+import { fetchPrograms, formatProgramTrack } from '@/utils/programs';
+import { formatPriceCedi } from '@/utils/format';
 
 function Field({ label, value, onChangeText, editable = true, keyboardType, multiline }) {
   return (
@@ -71,6 +75,7 @@ export default function CreatorProgramsScreen() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState(false);
+  const [programs, setPrograms] = useState([]);
   const hydratedRef = useRef(false);
 
   const submitted = hasSubmittedCreatorApplication({ creatorStatus }) || applied;
@@ -101,6 +106,12 @@ export default function CreatorProgramsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    fetchPrograms()
+      .then((list) => setPrograms(list.filter((p) => p.isActive && p.slug)))
+      .catch(() => setPrograms([]));
+  }, []);
 
   const saveDraft = useCallback(
     async (silent = false) => {
@@ -204,6 +215,38 @@ export default function CreatorProgramsScreen() {
             <CreatorStatusBadge status={creatorStatus} />
           </View>
         </LinearGradient>
+
+        {programs.length ? (
+          <View style={styles.programsSection}>
+            <Text style={styles.programsTitle}>Creator programs</Text>
+            <Text style={styles.programsHint}>Paid tracks that unlock specialized creator training.</Text>
+            {programs.map((program) => (
+              <Pressable
+                key={program.id}
+                style={styles.programCard}
+                onPress={() => router.push(`/programs/${program.slug}`)}>
+                <View style={styles.programTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.programName}>{program.name}</Text>
+                    <Text style={styles.programTrack}>{formatProgramTrack(program.courseType)}</Text>
+                  </View>
+                  <Text style={styles.programPrice}>
+                    {program.price ? formatPriceCedi(program.price) : 'Free'}
+                  </Text>
+                </View>
+                {program.description ? (
+                  <Text style={styles.programDesc} numberOfLines={2}>
+                    {program.description}
+                  </Text>
+                ) : null}
+                <View style={styles.programLink}>
+                  <Text style={styles.link}>View program</Text>
+                  <FontAwesome name="chevron-right" size={12} color={colors.primary} />
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         {message ? <View style={styles.messageBox}><Text style={styles.messageText}>{message}</Text></View> : null}
         {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
@@ -395,6 +438,32 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontSize: 14,
     lineHeight: 20,
+  },
+  programsSection: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  programsTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  programsHint: { color: colors.muted, fontSize: 13, lineHeight: 18, marginBottom: spacing.xs },
+  programCard: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  programTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  programName: { fontSize: 16, fontWeight: '800', color: colors.text },
+  programTrack: { marginTop: 4, fontSize: 12, color: colors.muted, fontWeight: '600' },
+  programPrice: { fontSize: 15, fontWeight: '800', color: colors.primary },
+  programDesc: { marginTop: spacing.sm, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  programLink: {
+    marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   panel: {
     marginHorizontal: spacing.lg,

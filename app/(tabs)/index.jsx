@@ -18,10 +18,10 @@ import { CourseCard } from '@/components/ui/CourseCard';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { colors, radii, spacing } from '@/constants/theme';
+import { hubTiles } from '@/data/categories';
 import { useAppState } from '@/context/AppState';
-import { notifications } from '@/data/wallet';
-import { getTutorById } from '@/data/tutors';
 import { fetchCourses, fetchPurchasedCourses } from '@/utils/catalog';
+import { fetchNotifications } from '@/utils/notifications';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -43,6 +43,7 @@ export default function HomeScreen() {
   const [courses, setCourses] = useState([]);
   const [continueCourse, setContinueCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -61,8 +62,15 @@ export default function HomeScreen() {
           } catch {
             if (alive) setContinueCourse(null);
           }
+          try {
+            const noteData = await fetchNotifications(token, { unreadOnly: true });
+            if (alive) setUnreadCount(noteData.unreadCount);
+          } catch {
+            if (alive) setUnreadCount(0);
+          }
         } else if (alive) {
           setContinueCourse(null);
+          setUnreadCount(0);
         }
       } catch {
         if (!alive) return;
@@ -87,7 +95,6 @@ export default function HomeScreen() {
   ).slice(0, 6);
 
   const nextBooking = bookings.find((b) => b.status === 'upcoming');
-  const nextTutor = nextBooking ? getTutorById(nextBooking.tutorId) : null;
 
   const onSearchSubmit = () => {
     if (!query.trim()) return;
@@ -112,7 +119,7 @@ export default function HomeScreen() {
               <View style={styles.heroActions}>
                 <Pressable style={styles.iconBtn} onPress={() => router.push('/notifications')}>
                   <FontAwesome name="bell-o" size={16} color={colors.white} />
-                  {notifications.length ? <View style={styles.dot} /> : null}
+                  {unreadCount > 0 ? <View style={styles.dot} /> : null}
                 </Pressable>
               </View>
             </View>
@@ -157,6 +164,23 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
             ) : null}
+
+            <Text style={styles.sectionEyebrow}>Explore</Text>
+            <View style={styles.hubGrid}>
+              {hubTiles.map((tile) => (
+                <Pressable
+                  key={tile.id}
+                  style={styles.hubTile}
+                  onPress={() => router.push(tile.href)}>
+                  <View style={styles.hubIcon}>
+                    <FontAwesome name={tile.icon} size={16} color={colors.primary} />
+                  </View>
+                  <Text style={styles.hubLabel} numberOfLines={2}>
+                    {tile.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
             <View style={styles.sectionHead}>
               <View>
@@ -209,16 +233,20 @@ export default function HomeScreen() {
               </>
             ) : null}
 
-            {nextBooking && nextTutor ? (
+            {nextBooking ? (
               <Pressable style={styles.session} onPress={() => router.push('/bookings')}>
-                <Image source={{ uri: nextTutor.avatar }} style={styles.sessionAvatar} />
+                <View style={styles.sessionAvatarFallback}>
+                  <Text style={styles.sessionAvatarLetter}>
+                    {(nextBooking.tutorName || 'T').charAt(0)}
+                  </Text>
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sessionLabel}>Upcoming session</Text>
                   <Text style={styles.sessionTitle} numberOfLines={1}>
                     {nextBooking.serviceName}
                   </Text>
                   <Text style={styles.sessionMeta}>
-                    {nextTutor.name} · {nextBooking.date} · {nextBooking.time}
+                    {nextBooking.tutorName || 'Tutor'} · {nextBooking.date} · {nextBooking.time}
                   </Text>
                 </View>
                 <FontAwesome name="chevron-right" size={12} color={colors.muted} />
@@ -440,6 +468,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
+  hubGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  hubTile: {
+    width: '31%',
+    minWidth: 100,
+    flexGrow: 1,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  hubIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#EEF4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hubLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   session: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -455,6 +516,19 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: colors.border,
+  },
+  sessionAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionAvatarLetter: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 18,
   },
   sessionLabel: {
     fontSize: 11,

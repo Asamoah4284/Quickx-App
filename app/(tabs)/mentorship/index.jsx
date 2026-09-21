@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -72,15 +71,10 @@ export default function MentorshipScreen() {
 
   const onSessionPress = (session) => {
     if (session.isPremium) {
-      Alert.alert(session.title, `${session.summary}\n\n${session.date} · ${session.time}`, [
-        { text: 'Browse tutors', onPress: () => router.push('/tutors') },
-        { text: 'Close', style: 'cancel' },
-      ]);
+      router.push('/analysis/premium');
       return;
     }
-    Alert.alert(session.title, `${session.summary}\n\nMentor: ${session.mentor}\n${session.date} · ${session.time}`, [
-      { text: 'OK' },
-    ]);
+    router.push('/analysis');
   };
 
   return (
@@ -193,10 +187,15 @@ export default function MentorshipScreen() {
         )}
 
         <PrimaryButton
+          label="Analysis & plans"
+          onPress={() => router.push('/analysis')}
+          style={{ marginTop: spacing.xl }}
+        />
+        <PrimaryButton
           label="Find a mentor"
           variant="secondary"
           onPress={() => router.push('/tutors')}
-          style={{ marginTop: spacing.xl }}
+          style={{ marginTop: spacing.sm }}
         />
         <PrimaryButton
           label="My communities"

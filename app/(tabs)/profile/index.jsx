@@ -19,18 +19,22 @@ import { creatorStatusLabel, fetchCreatorProfile } from '@/utils/creator';
 const BASE_LEARNING = [
   { id: 'mycourses', label: 'My courses', hint: 'Watch courses you’ve bought', icon: 'play-circle', href: '/my-courses' },
   { id: 'learning', label: 'Browse catalog', hint: 'Explore all courses', icon: 'graduation-cap', href: '/(tabs)/learn' },
-  { id: 'teaching', label: 'My teaching courses', hint: 'Create and manage your catalog', icon: 'book', href: '/creator/courses' },
+  { id: 'teaching', label: 'Creator studio', hint: 'Dashboard, courses, books, and earnings', icon: 'briefcase', href: '/creator' },
   { id: 'programs', label: 'Creator programs', hint: 'Apply free to teach on QuickX', icon: 'trophy', href: '/programs' },
   { id: 'communities', label: 'Communities', hint: 'Tutor feeds, Q&A, and resources', icon: 'comments', href: '/communities' },
-  { id: 'saved', label: 'Saved courses', hint: 'Pick up later', icon: 'bookmark-o', href: '/(tabs)/learn' },
+  { id: 'saved', label: 'Saved courses', hint: 'Pick up later', icon: 'bookmark-o', href: '/saved-courses' },
   { id: 'bookings', label: 'Sessions', hint: 'Upcoming and past bookings', icon: 'calendar', href: '/bookings' },
   { id: 'tutors', label: 'Tutors', hint: 'People you follow and book', icon: 'users', href: '/tutors' },
 ];
 
 const ACCOUNT = [
+  { id: 'settings', label: 'Settings', hint: 'Name, phone, and account details', icon: 'cog', href: '/settings' },
+  { id: 'referrals', label: 'Referrals', hint: 'Your code and earnings', icon: 'gift', href: '/referrals' },
   { id: 'notifications', label: 'Notifications', hint: 'Reminders and offers', icon: 'bell-o', href: '/notifications' },
   { id: 'live', label: 'Live classes', hint: 'Upcoming broadcasts', icon: 'video-camera', href: '/live' },
   { id: 'ai', label: 'QuickX AI', hint: 'Study assistant', icon: 'magic', href: '/ai' },
+  { id: 'trading', label: 'AI Trading', hint: 'Educational trading hub', icon: 'line-chart', href: '/trading' },
+  { id: 'analysis', label: 'Analysis & mentorship', hint: 'Plans and market insights', icon: 'bar-chart', href: '/analysis' },
 ];
 
 export default function ProfileScreen() {
@@ -80,7 +84,7 @@ export default function ProfileScreen() {
           <View style={styles.hero}>
             <View style={styles.heroTop}>
               <Text style={styles.eyebrow}>Account</Text>
-              <Pressable style={styles.iconBtn} onPress={() => router.push('/notifications')}>
+              <Pressable style={styles.iconBtn} onPress={() => router.push('/settings')}>
                 <FontAwesome name="cog" size={16} color={colors.white} />
               </Pressable>
             </View>
@@ -158,13 +162,13 @@ export default function ProfileScreen() {
             )}
 
             {approvedCreator ? (
-              <Pressable style={styles.teachingCard} onPress={() => router.push('/creator/courses')}>
+              <Pressable style={styles.teachingCard} onPress={() => router.push('/creator')}>
                 <View style={styles.programsCardTop}>
-                  <Text style={styles.programsCardLabel}>Teaching catalog</Text>
+                  <Text style={styles.programsCardLabel}>Creator studio</Text>
                   <Text style={styles.programsCardLink}>Open</Text>
                 </View>
-                <Text style={styles.programName}>My teaching courses</Text>
-                <Text style={styles.programMeta}>Add, edit, and submit courses for review</Text>
+                <Text style={styles.programName}>Teaching dashboard</Text>
+                <Text style={styles.programMeta}>Manage courses, books, students, and earnings</Text>
               </Pressable>
             ) : null}
 

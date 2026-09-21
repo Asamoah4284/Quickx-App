@@ -8,7 +8,6 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Screen } from '@/components/ui/Screen';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { getTutorById } from '@/data/tutors';
 import { formatPriceCedi } from '@/utils/format';
 
 export default function MyBookingsScreen() {
@@ -42,37 +41,34 @@ export default function MyBookingsScreen() {
           subtitle="Book a tutor session from any tutor profile."
         />
       ) : (
-        filtered.map((b) => {
-          const tutor = getTutorById(b.tutorId);
-          return (
-            <View key={b.id} style={styles.card}>
-              <Text style={styles.title}>{b.serviceName}</Text>
-              <Text style={typography.caption}>
-                {tutor?.name} · {b.date} · {b.time} · {b.durationMins} min
-              </Text>
-              <Text style={styles.price}>{formatPriceCedi(b.price)}</Text>
-              {tab === 'upcoming' ? (
-                <View style={styles.actions}>
-                  <PrimaryButton
-                    label="Cancel"
-                    variant="danger"
-                    onPress={() => cancelBooking(b.id)}
-                    style={{ flex: 1 }}
-                  />
-                  <PrimaryButton
-                    label="Mark done"
-                    variant="secondary"
-                    onPress={() => completeBooking(b.id)}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              ) : null}
-              <Pressable onPress={() => router.push(`/tutor/${b.tutorId}`)}>
-                <Text style={styles.link}>View tutor</Text>
-              </Pressable>
-            </View>
-          );
-        })
+        filtered.map((b) => (
+          <View key={b.id} style={styles.card}>
+            <Text style={styles.title}>{b.serviceName}</Text>
+            <Text style={typography.caption}>
+              {b.tutorName || 'Tutor'} · {b.date} · {b.time} · {b.durationMins} min
+            </Text>
+            <Text style={styles.price}>{formatPriceCedi(b.price)}</Text>
+            {tab === 'upcoming' ? (
+              <View style={styles.actions}>
+                <PrimaryButton
+                  label="Cancel"
+                  variant="danger"
+                  onPress={() => cancelBooking(b.id)}
+                  style={{ flex: 1 }}
+                />
+                <PrimaryButton
+                  label="Mark done"
+                  variant="secondary"
+                  onPress={() => completeBooking(b.id)}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            ) : null}
+            <Pressable onPress={() => router.push(`/tutor/${b.tutorId}`)}>
+              <Text style={styles.link}>View tutor</Text>
+            </Pressable>
+          </View>
+        ))
       )}
     </Screen>
   );
