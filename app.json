@@ -8,7 +8,7 @@
     "scheme": "quickxlearn",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.quickxlearn.app",
       "config": {
         "usesNonExemptEncryption": false
