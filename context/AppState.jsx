@@ -6,6 +6,7 @@ import { initialTransactions, initialWallet } from '@/data/wallet';
 import { loginWithEmail as loginWithEmailApi } from '@/utils/auth';
 import { cancelBooking as cancelBookingApi, createBooking as createBookingApi, fetchBookings } from '@/utils/bookings';
 import { registerPushNotifications } from '@/utils/pushNotifications';
+import { loadCurrencySettings } from '@/utils/currency';
 import { fetchWallet, payFromWallet, topUpWallet, withdrawWallet } from '@/utils/wallet';
 
 const AVATAR_KEY = 'quickx.avatarUri';
@@ -13,6 +14,8 @@ const AUTH_KEY = 'quickx.auth';
 const SAVED_COURSES_KEY = 'quickx.savedCourses';
 const BOOKINGS_KEY = 'quickx.bookings';
 const CART_KEY = 'quickx.bookCart';
+
+const DEBIT_TYPES = new Set(['payment', 'withdraw']);
 
 const AppStateContext = createContext(null);
 
@@ -49,12 +52,17 @@ export function AppStateProvider({ children }) {
       AsyncStorage.getItem(SAVED_COURSES_KEY),
       AsyncStorage.getItem(BOOKINGS_KEY),
       AsyncStorage.getItem(CART_KEY),
+      // Prices must be converted before the first screen renders them.
+      loadCurrencySettings().catch(() => null),
     ])
       .then(([authRaw, savedRaw, bookingsRaw, cartRaw]) => {
         if (authRaw) {
           try {
             const parsed = JSON.parse(authRaw);
-            if (parsed?.user) {
+            if (parsed?.token === 'local' || !parsed?.token) {
+              // Legacy offline demo sessions are no longer supported — require a real sign-in.
+              AsyncStorage.removeItem(AUTH_KEY).catch(() => {});
+            } else if (parsed?.user) {
               setUser(parsed.user);
               setToken(parsed.token || null);
             }
@@ -172,7 +180,8 @@ export function AppStateProvider({ children }) {
             id: tx.id,
             type: tx.type,
             label: tx.label,
-            amount: tx.amount,
+            // Backend stores some debits (e.g. pie deposits) as positive amounts — normalise by type.
+            amount: DEBIT_TYPES.has(tx.type) ? -Math.abs(Number(tx.amount) || 0) : Number(tx.amount) || 0,
             date: tx.date ? String(tx.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
             status: tx.status || 'completed',
           }))
@@ -194,7 +203,15 @@ export function AppStateProvider({ children }) {
 
   const loginWithEmail = useCallback(
     async (email, password) => {
-      const data = await loginWithEmailApi(email, password);
+      let data;
+      try {
+        data = await loginWithEmailApi(email, password);
+      } catch (error) {
+        if (isNetworkError(error)) {
+          throw new Error('Can’t reach QuickX right now. Check your connection and try again.');
+        }
+        throw error;
+      }
       await persistAuth(data.user, data.token);
       if (typeof data.user?.walletBalance === 'number') {
         setBalance(data.user.walletBalance);
@@ -220,35 +237,27 @@ export function AppStateProvider({ children }) {
 
   const deposit = useCallback(
     async ({ amount, phone, network, onPending }) => {
-      if (!token || token === 'local') return false;
-      try {
-        const result = await topUpWallet({ token, amount, phone, network, onPending });
-        if (typeof result.balance === 'number') {
-          setBalance(result.balance);
-        }
-        await loadWallet();
-        return true;
-      } catch {
-        return false;
+      if (!token || token === 'local') throw new Error('Sign in to top up your wallet.');
+      const result = await topUpWallet({ token, amount, phone, network, onPending });
+      if (typeof result.balance === 'number') {
+        setBalance(result.balance);
       }
+      await loadWallet();
+      return true;
     },
     [token, setBalance, loadWallet]
   );
 
   const withdraw = useCallback(
     async ({ amount, phone, network }) => {
-      if (!token || token === 'local') return false;
-      if (balanceRef.current < amount) return false;
-      try {
-        const result = await withdrawWallet({ token, amount, phone, network });
-        if (typeof result.balance === 'number') {
-          setBalance(result.balance);
-        }
-        await loadWallet();
-        return true;
-      } catch {
-        return false;
+      if (!token || token === 'local') throw new Error('Sign in to withdraw.');
+      if (balanceRef.current < amount) throw new Error('Insufficient wallet balance.');
+      const result = await withdrawWallet({ token, amount, phone, network });
+      if (typeof result.balance === 'number') {
+        setBalance(result.balance);
       }
+      await loadWallet();
+      return true;
     },
     [token, setBalance, loadWallet]
   );
@@ -417,51 +426,109 @@ export function AppStateProvider({ children }) {
     [pay]
   );
 
-  const requestOtp = useCallback(async (phone, purpose, profile = {}) => {
-    try {
-      const data = await api('/users/otp/request', {
-        method: 'POST',
-        body: { phone, purpose, ...profile },
-      });
-      return { offline: false, devCode: data.devCode };
-    } catch (error) {
-      if (!isNetworkError(error) && error.name !== 'AbortError') throw error;
-      return { offline: true };
+  const withNetworkMessage = (error) => {
+    if (isNetworkError(error)) {
+      return new Error('Can’t reach QuickX right now. Check your connection and try again.');
     }
-  }, []);
+    return error;
+  };
 
-  const verifyOtp = useCallback(async (phone, code, profile = {}) => {
-    try {
-      const data = await api('/users/otp/verify', {
-        method: 'POST',
-        body: { phone, code },
-      });
+  const completeSignIn = useCallback(
+    async (data) => {
       await persistAuth(data.user, data.token);
       if (typeof data.user?.walletBalance === 'number') {
         setBalance(data.user.walletBalance);
       }
       await loadWallet();
       registerPushNotifications(data.token).catch(() => {});
+    },
+    [persistAuth, loadWallet, setBalance]
+  );
+
+  const requestOtp = useCallback(async (phone, purpose, profile = {}) => {
+    try {
+      const data = await api('/users/otp/request', {
+        method: 'POST',
+        body: { phone, purpose, ...profile },
+      });
+      return { devCode: data.devCode };
     } catch (error) {
-      if (!isNetworkError(error) && error.name !== 'AbortError') throw error;
-      if (code !== '123456') {
-        throw new Error('Wrong code. Use 123456 while offline.');
-      }
-      await persistAuth(
-        {
-          id: 'local',
-          fullName: profile.fullName || 'QuickX Learner',
-          email: profile.email || '',
-          phone,
-        },
-        'local'
-      );
+      throw withNetworkMessage(error);
     }
-  }, [persistAuth, loadWallet, setBalance]);
+  }, []);
+
+  const verifyOtp = useCallback(
+    async (phone, code) => {
+      try {
+        const data = await api('/users/otp/verify', {
+          method: 'POST',
+          body: { phone, code },
+        });
+        await completeSignIn(data);
+      } catch (error) {
+        throw withNetworkMessage(error);
+      }
+    },
+    [completeSignIn]
+  );
+
+  /** Email + password registration (same as the website). Sends an SMS code to verify the account. */
+  const registerWithEmail = useCallback(async ({ fullName, email, phone, password, referralCode }) => {
+    try {
+      const data = await api('/users/register', {
+        method: 'POST',
+        body: {
+          fullName: String(fullName || '').trim(),
+          email: String(email || '').trim().toLowerCase(),
+          phone,
+          password,
+          country: 'Ghana',
+          ...(referralCode ? { referralCode: String(referralCode).trim().toUpperCase() } : {}),
+        },
+      });
+      return { devCode: data.devCode };
+    } catch (error) {
+      throw withNetworkMessage(error);
+    }
+  }, []);
+
+  const verifyEmailAccount = useCallback(
+    async (email, code) => {
+      try {
+        const data = await api('/users/verify-account', {
+          method: 'POST',
+          body: { email: String(email || '').trim().toLowerCase(), code },
+        });
+        await completeSignIn(data);
+      } catch (error) {
+        throw withNetworkMessage(error);
+      }
+    },
+    [completeSignIn]
+  );
+
+  const resendEmailOtp = useCallback(async (email) => {
+    try {
+      const data = await api('/users/resend-otp', {
+        method: 'POST',
+        body: { email: String(email || '').trim().toLowerCase() },
+      });
+      return { devCode: data.devCode };
+    } catch (error) {
+      throw withNetworkMessage(error);
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     await persistAuth(null, null);
-  }, [persistAuth]);
+    // Don't leak the previous account's money or history into the next session.
+    setBalance(0);
+    setTransactions([]);
+    setBookings([]);
+    setEnrolledCourses({});
+    setPurchasedBooks([]);
+    setPhysicalOrders([]);
+  }, [persistAuth, setBalance]);
 
   const value = useMemo(
     () => ({
@@ -501,6 +568,9 @@ export function AppStateProvider({ children }) {
       authReady,
       requestOtp,
       verifyOtp,
+      registerWithEmail,
+      verifyEmailAccount,
+      resendEmailOtp,
       logout,
       updateUser,
       refreshSession,
@@ -548,6 +618,9 @@ export function AppStateProvider({ children }) {
       authReady,
       requestOtp,
       verifyOtp,
+      registerWithEmail,
+      verifyEmailAccount,
+      resendEmailOtp,
       logout,
       updateUser,
       refreshSession,

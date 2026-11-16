@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radii } from '@/constants/theme';
+import { haptics } from '@/utils/haptics';
 
 const TAB_ORDER = ['index', 'mentorship', 'learn', 'books', 'profile'];
 
@@ -58,6 +59,7 @@ export function FloatingTabBar({ state, descriptors, navigation }) {
             canPreventDefault: true,
           });
           if (!isFocused && !event.defaultPrevented) {
+            haptics.select();
             navigation.navigate(route.name);
           }
         };

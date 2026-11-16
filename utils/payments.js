@@ -19,6 +19,7 @@ export async function initializePurchase({
   phone,
   email,
   referralCode,
+  couponId,
   offerOptionId,
   items,
   network,
@@ -41,6 +42,8 @@ export async function initializePurchase({
     otpcode,
     sessionid,
   };
+  // Server re-checks discounted course prices against the coupon.
+  if (couponId) body.couponId = couponId;
 
   if (itemType === 'book_cart') {
     body.items = items;

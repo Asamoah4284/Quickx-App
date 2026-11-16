@@ -89,10 +89,10 @@ export default function CheckoutScreen() {
     );
   }
 
-  const onPay = async ({ phone, email, amount, referralCode }) => {
+  const onPay = async ({ phone, email, amount, referralCode, couponId, network, otpcode, sessionid, onPending }) => {
     setPaying(true);
     try {
-      await initializePurchase({
+      const result = await initializePurchase({
         token,
         itemType: 'course',
         itemId: course.id,
@@ -100,7 +100,17 @@ export default function CheckoutScreen() {
         phone,
         email,
         referralCode,
+        couponId,
+        network,
+        otpcode,
+        sessionid,
+        onPending,
       });
+      if (result?.requiresOtp && !result?.completed) {
+        // Moolre needs an OTP — PaymentCheckout shows the field; user taps Pay again.
+        onPending?.(result);
+        return;
+      }
       grantCourseAccess(course.id);
       invalidatePurchasedCoursesCache();
       try {

@@ -8,6 +8,7 @@ import { colors, radii, spacing, typography } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { detectMomoNetwork, getMomoNetworks } from '@/utils/moolre';
 import { formatCurrency } from '@/utils/format';
+import { haptics } from '@/utils/haptics';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function WalletScreen() {
   const [network, setNetwork] = useState(detectMomoNetwork(user?.phone || ''));
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     if (user?.phone) {
@@ -61,31 +63,33 @@ export default function WalletScreen() {
       Alert.alert('Phone required', 'Enter your Mobile Money number.');
       return;
     }
+    if (modal === 'withdraw' && walletBalance < value) {
+      Alert.alert('Insufficient balance', `You can withdraw up to ${formatCurrency(walletBalance, currency)}.`);
+      return;
+    }
     setSubmitting(true);
     try {
       if (modal === 'deposit') {
-        const ok = await deposit({
+        await deposit({
           amount: value,
           phone,
           network,
-          onPending: () => {
-            Alert.alert('Approve top-up', 'Check your phone for the MoMo prompt to add funds.');
-          },
+          onPending: () => setPending(true),
         });
-        if (!ok) Alert.alert('Top-up failed', 'Could not complete the deposit.');
-        else Alert.alert('Top-up successful', 'Your wallet balance has been updated.');
+        haptics.success();
+        Alert.alert('Top-up successful', 'Your wallet balance has been updated.');
       } else if (modal === 'withdraw') {
-        if (walletBalance < value) {
-          Alert.alert('Insufficient balance');
-          return;
-        }
-        const ok = await withdraw({ amount: value, phone, network });
-        if (!ok) Alert.alert('Withdrawal failed', 'Could not submit withdrawal.');
-        else Alert.alert('Withdrawal requested', 'Funds will be sent to your MoMo number.');
+        await withdraw({ amount: value, phone, network });
+        haptics.success();
+        Alert.alert('Withdrawal requested', 'Funds will be sent to your MoMo number once approved.');
       }
       close();
+    } catch (err) {
+      haptics.error();
+      Alert.alert(modal === 'deposit' ? 'Top-up failed' : 'Withdrawal failed', err.message || 'Please try again.');
     } finally {
       setSubmitting(false);
+      setPending(false);
     }
   };
 
@@ -183,12 +187,15 @@ export default function WalletScreen() {
               style={styles.input}
               placeholderTextColor={colors.muted}
             />
+            {pending ? (
+              <Text style={styles.pending}>Approve the MoMo prompt on your phone — we’ll confirm automatically.</Text>
+            ) : null}
             <PrimaryButton
-              label={submitting ? 'Processing…' : 'Confirm'}
+              label={modal === 'deposit' ? 'Top up' : 'Withdraw'}
               onPress={submit}
-              disabled={submitting}
+              loading={submitting}
             />
-            <PrimaryButton label="Cancel" variant="ghost" onPress={close} style={{ marginTop: 8 }} />
+            <PrimaryButton label="Cancel" variant="ghost" onPress={close} disabled={submitting} style={{ marginTop: 8 }} />
           </View>
         </View>
       </Modal>
@@ -252,6 +259,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.xl,
     gap: spacing.md,
+  },
+  pending: {
+    backgroundColor: '#FFF7E0',
+    color: colors.navy,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
   },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, textTransform: 'uppercase' },
   networkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

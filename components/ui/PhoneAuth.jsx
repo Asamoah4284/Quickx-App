@@ -14,7 +14,6 @@ import {
   formatGhPhone,
   formatIntlPhone,
   isValidGhPhone,
-  LOCAL_OTP,
   normalizeGhPhone,
 } from '@/utils/phone';
 
@@ -47,7 +46,7 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
-export function PhoneAuth({ mode }) {
+export function PhoneAuth({ mode, top }) {
   const { requestOtp, verifyOtp } = useAppState();
   const copy = COPY[mode];
   const [phone, setPhone] = useState('');
@@ -93,9 +92,7 @@ export function PhoneAuth({ mode }) {
       setStep('code');
       setCode('');
       setSeconds(45);
-      if (result?.offline) {
-        setHint(`Couldn’t reach SMS just now. Use ${LOCAL_OTP} to continue.`);
-      } else if (result?.devCode) {
+      if (result?.devCode && __DEV__) {
         setHint(`Dev code: ${result.devCode}`);
       } else {
         setHint('');
@@ -117,7 +114,7 @@ export function PhoneAuth({ mode }) {
     setError('');
     setLoading(true);
     try {
-      await verifyOtp(localPhone, nextCode, mode === 'signup' ? profile : {});
+      await verifyOtp(localPhone, nextCode);
     } catch (err) {
       setError(err.message || 'That code didn’t work.');
       verifying.current = false;
@@ -136,6 +133,7 @@ export function PhoneAuth({ mode }) {
       <AuthScreen
         title="Enter the code"
         subtitle={`We sent a 6-digit SMS to ${formatIntlPhone(localPhone)}.`}
+        backLabel="‹ Change number"
         onBack={() => {
           setStep('phone');
           setCode('');
@@ -168,7 +166,7 @@ export function PhoneAuth({ mode }) {
   }
 
   return (
-    <AuthScreen title={copy.title} subtitle={copy.subtitle}>
+    <AuthScreen title={copy.title} subtitle={copy.subtitle} top={top}>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {mode === 'signup' ? (

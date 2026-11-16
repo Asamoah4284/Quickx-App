@@ -14,7 +14,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.navyMid,
         tabBarInactiveTintColor: colors.tabInactive,
         animation: 'shift',
-        lazy: false,
+        // Mount tabs on first visit — avoids five screens fetching at once on app launch.
+        lazy: true,
+        freezeOnBlur: true,
       }}>
       <Tabs.Screen
         name="index"

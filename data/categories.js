@@ -10,15 +10,15 @@ export const categories = [
 ];
 
 export const hubTiles = [
-  { id: 'courses', label: 'Courses', icon: 'graduation-cap', href: '/(tabs)/learn' },
+  { id: 'ptrading', label: 'Pie Trading', icon: 'pie-chart', href: '/ptrading' },
+  { id: 'events', label: 'Events', icon: 'calendar', href: '/events' },
+  { id: 'communities', label: 'Communities', icon: 'comments', href: '/communities' },
   { id: 'tutors', label: 'Tutors', icon: 'users', href: '/tutors' },
-  { id: 'books', label: 'Books', icon: 'book', href: '/(tabs)/books' },
-  { id: 'mentorship', label: 'Mentorship', icon: 'handshake-o', href: '/(tabs)/mentorship' },
   { id: 'live', label: 'Live Classes', icon: 'video-camera', href: '/live' },
-  { id: 'forex', label: 'Finance/Forex', icon: 'line-chart', href: '/(tabs)/learn?category=forex' },
-  { id: 'trading', label: 'AI Trading', icon: 'rocket', href: '/trading' },
-  { id: 'ai', label: 'QuickX AI', icon: 'magic', href: '/ai' },
-  { id: 'offers', label: 'Offers', icon: 'tags', href: '/(tabs)/learn' },
+  { id: 'forex', label: 'Forex', icon: 'line-chart', href: '/(tabs)/learn?category=forex' },
+  { id: 'programs', label: 'Creator Programs', icon: 'trophy', href: '/programs' },
+  { id: 'wallet', label: 'Wallet', icon: 'credit-card', href: '/wallet' },
+  { id: 'referrals', label: 'Refer & Earn', icon: 'gift', href: '/referrals' },
 ];
 
 export const levels = ['Beginner', 'Intermediate', 'Advanced'];

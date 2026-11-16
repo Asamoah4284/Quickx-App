@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '@/constants/theme';
 
-export function AuthScreen({ title, subtitle, onBack, children }) {
+export function AuthScreen({ title, subtitle, onBack, backLabel = '‹ Back', top, children }) {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -17,9 +17,10 @@ export function AuthScreen({ title, subtitle, onBack, children }) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scroll}>
             <View style={styles.hero}>
+              {top && !onBack ? <View style={styles.top}>{top}</View> : null}
               {onBack ? (
                 <Pressable onPress={onBack} style={styles.back} hitSlop={12}>
-                  <Text style={styles.backText}>‹ Change number</Text>
+                  <Text style={styles.backText}>{backLabel}</Text>
                 </Pressable>
               ) : (
                 <View style={styles.mark}>
@@ -56,6 +57,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
+  },
+  top: {
+    marginBottom: spacing.xl,
   },
   back: {
     alignSelf: 'flex-start',

@@ -92,15 +92,7 @@ export default function SettingsScreen() {
         autoCapitalize="words"
       />
 
-      <PrimaryButton label={saving ? 'Saving…' : 'Save changes'} onPress={onSave} disabled={saving} />
-
-      {token === 'local' ? (
-        <Pressable style={styles.offlineNote}>
-          <Text style={styles.offlineText}>
-            You are in offline demo mode. Connect to the backend and sign in to sync settings.
-          </Text>
-        </Pressable>
-      ) : null}
+      <PrimaryButton label="Save changes" onPress={onSave} loading={saving} />
     </Screen>
   );
 }

@@ -1,5 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, radii, spacing } from '@/constants/theme';
 
 export function PrimaryButton({
@@ -8,6 +10,7 @@ export function PrimaryButton({
   variant = 'primary',
   disabled = false,
   loading = false,
+  icon,
   style,
 }) {
   const isSecondary = variant === 'secondary';
@@ -17,23 +20,29 @@ export function PrimaryButton({
   const textColor = isSecondary || isGhost ? colors.primary : colors.white;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={isOff}
-      style={({ pressed }) => [
+      haptic={isGhost ? 'select' : 'press'}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isOff, busy: loading }}
+      style={[
         styles.btn,
         isSecondary && styles.secondary,
         isGhost && styles.ghost,
         isDanger && styles.danger,
-        (pressed || isOff) && { opacity: isOff ? 0.45 : 0.85 },
+        isOff && styles.off,
         style,
       ]}>
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <Text style={[styles.label, { color: isDanger ? colors.white : textColor }]}>{label}</Text>
+        <View style={styles.row}>
+          {icon ? <FontAwesome name={icon} size={14} color={textColor} /> : null}
+          <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+        </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -45,7 +54,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 50,
   },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   secondary: {
     backgroundColor: colors.card,
     borderWidth: 1.5,
@@ -58,6 +69,7 @@ const styles = StyleSheet.create({
   danger: {
     backgroundColor: colors.danger,
   },
+  off: { opacity: 0.45 },
   label: {
     color: colors.white,
     fontWeight: '700',

@@ -1,5 +1,3 @@
-export const LOCAL_OTP = '123456';
-
 export function digitsOnly(value) {
   return String(value || '').replace(/\D/g, '');
 }

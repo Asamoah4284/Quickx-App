@@ -8,8 +8,9 @@ import { AuthScreen } from '@/components/ui/AuthScreen';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, spacing } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
+import { haptics } from '@/utils/haptics';
 
-export function EmailAuth() {
+export function EmailAuth({ top }) {
   const { loginWithEmail } = useAppState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +27,9 @@ export function EmailAuth() {
     setLoading(true);
     try {
       await loginWithEmail(email, password);
+      haptics.success();
     } catch (err) {
+      haptics.error();
       setError(err.message || 'Login failed. Check your credentials.');
       setLoading(false);
     }
@@ -34,7 +37,8 @@ export function EmailAuth() {
 
   return (
     <AuthScreen
-      title="Sign in with email"
+      title="Welcome back"
+      top={top}
       subtitle="Use the same email and password as the QuickX website.">
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -48,32 +52,40 @@ export function EmailAuth() {
         autoCapitalize="none"
         autoComplete="email"
         textContentType="emailAddress"
+        returnKeyType="next"
       />
 
       <Text style={styles.label}>Password</Text>
-      <View style={styles.passwordRow}>
-        <View style={{ flex: 1 }}>
-          <AuthField
-            icon="lock"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Your password"
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            autoComplete="password"
-            textContentType="password"
-          />
-        </View>
-        <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn}>
-          <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={18} color={colors.muted} />
-        </Pressable>
-      </View>
+      <AuthField
+        icon="lock"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Your password"
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        autoComplete="password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={submit}
+        right={
+          <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={10} style={styles.eyeBtn}>
+            <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={18} color={colors.muted} />
+          </Pressable>
+        }
+      />
 
       <Link href="/(auth)/forgot-password" style={styles.forgot}>
         Forgot password?
       </Link>
 
-      <PrimaryButton label="Sign in" onPress={submit} loading={loading} style={{ marginTop: spacing.md }} />
+      <PrimaryButton label="Sign in" onPress={submit} loading={loading} style={{ marginTop: spacing.lg }} />
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>New to QuickXLearn? </Text>
+        <Link href="/(auth)/signup" style={styles.link}>
+          Create an account
+        </Link>
+      </View>
     </AuthScreen>
   );
 }
@@ -81,7 +93,9 @@ export function EmailAuth() {
 const styles = StyleSheet.create({
   error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md, fontSize: 14 },
   label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eyeBtn: { padding: spacing.sm },
-  forgot: { color: colors.primary, fontWeight: '700', fontSize: 14, marginTop: spacing.sm },
+  eyeBtn: { paddingLeft: spacing.sm },
+  forgot: { color: colors.primary, fontWeight: '700', fontSize: 14, alignSelf: 'flex-end' },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
+  footerText: { color: colors.muted, fontSize: 14 },
+  link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
 });

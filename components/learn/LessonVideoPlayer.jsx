@@ -1,5 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Audio, ResizeMode, Video } from 'expo-av';
+import { useEvent } from 'expo';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -30,55 +31,56 @@ export function LessonVideoPlayer({
 }) {
   const videoRef = useRef(null);
   const insets = useSafeAreaInsets();
-  const [status, setStatus] = useState({});
+  const player = useVideoPlayer(uri, (p) => {
+    p.play();
+  });
+
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+  const { currentTime } = useEvent(player, 'timeUpdate', { currentTime: player.currentTime });
+
   const [controlsVisible, setControlsVisible] = useState(true);
   const [seeking, setSeeking] = useState(false);
   const hideTimer = useRef(null);
   const trackWidth = useRef(0);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     setControlsVisible(true);
-    setStatus({});
   }, [uri]);
 
   useEffect(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    if (!controlsVisible || !status.isPlaying || seeking) return undefined;
+    if (!controlsVisible || !isPlaying || seeking) return undefined;
     hideTimer.current = setTimeout(() => setControlsVisible(false), 3200);
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-  }, [controlsVisible, status.isPlaying, seeking, status.positionMillis]);
+  }, [controlsVisible, isPlaying, seeking, currentTime]);
 
-  const loaded = Boolean(status.isLoaded);
-  const buffering = !loaded || (status.isBuffering && !status.isPlaying);
-  const position = loaded ? status.positionMillis || 0 : 0;
-  const duration = loaded ? status.durationMillis || 0 : 0;
-  const progress = duration > 0 ? Math.min(1, position / duration) : 0;
+  const loaded = status === 'readyToPlay';
+  const buffering = status === 'loading';
+  const positionMs = (currentTime || 0) * 1000;
+  const durationMs = (player.duration || 0) * 1000;
+  const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
 
   const revealControls = () => {
     setControlsVisible(true);
   };
 
-  const togglePlay = async () => {
+  const togglePlay = () => {
     revealControls();
-    if (!videoRef.current || !loaded) return;
-    if (status.isPlaying) await videoRef.current.pauseAsync();
-    else await videoRef.current.playAsync();
+    if (!loaded && !isPlaying) {
+      player.play();
+      return;
+    }
+    if (isPlaying) player.pause();
+    else player.play();
   };
 
-  const seekToRatio = async (ratio) => {
-    if (!videoRef.current || !duration) return;
-    const next = Math.max(0, Math.min(duration, ratio * duration));
-    await videoRef.current.setPositionAsync(next);
+  const seekToRatio = (ratio) => {
+    if (!player.duration) return;
+    const nextSec = Math.max(0, Math.min(player.duration, ratio * player.duration));
+    player.currentTime = nextSec;
   };
 
   const onTrackPress = (event) => {
@@ -91,7 +93,7 @@ export function LessonVideoPlayer({
   const openFullscreen = async () => {
     revealControls();
     try {
-      await videoRef.current?.presentFullscreenPlayer();
+      await videoRef.current?.enterFullscreen();
     } catch {
       /* ignore */
     }
@@ -100,22 +102,12 @@ export function LessonVideoPlayer({
   return (
     <View style={[styles.shell, { paddingTop: Math.max(insets.top, 8) }]}>
       <View style={styles.frame}>
-        <Video
+        <VideoView
           ref={videoRef}
           style={styles.video}
-          source={{ uri }}
-          posterSource={posterUri ? { uri: posterUri } : undefined}
-          usePoster={Boolean(posterUri)}
-          posterStyle={styles.video}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay
-          isLooping={false}
-          useNativeControls={false}
-          progressUpdateIntervalMillis={250}
-          onPlaybackStatusUpdate={(next) => {
-            if (!seeking) setStatus(next);
-          }}
-          onLoadStart={() => setStatus((prev) => ({ ...prev, isLoaded: false }))}
+          player={player}
+          nativeControls={false}
+          contentFit="contain"
         />
 
         <Pressable
@@ -156,17 +148,17 @@ export function LessonVideoPlayer({
                 ) : (
                   <Pressable style={styles.playBtn} onPress={togglePlay}>
                     <FontAwesome
-                      name={status.isPlaying ? 'pause' : 'play'}
+                      name={isPlaying ? 'pause' : 'play'}
                       size={22}
                       color={colors.white}
-                      style={status.isPlaying ? null : { marginLeft: 3 }}
+                      style={isPlaying ? null : { marginLeft: 3 }}
                     />
                   </Pressable>
                 )}
               </View>
 
               <View style={styles.bottomBar}>
-                <Text style={styles.time}>{formatTime(position)}</Text>
+                <Text style={styles.time}>{formatTime(positionMs)}</Text>
                 <Pressable
                   style={styles.track}
                   onLayout={(e) => {
@@ -179,10 +171,10 @@ export function LessonVideoPlayer({
                   <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
                   <View style={[styles.thumb, { left: `${Math.min(100, progress * 100)}%` }]} />
                 </Pressable>
-                <Text style={styles.time}>{formatTime(duration)}</Text>
+                <Text style={styles.time}>{formatTime(durationMs)}</Text>
                 <Pressable style={styles.smallPlay} onPress={togglePlay} hitSlop={8}>
                   <FontAwesome
-                    name={status.isPlaying ? 'pause' : 'play'}
+                    name={isPlaying ? 'pause' : 'play'}
                     size={12}
                     color={colors.white}
                   />

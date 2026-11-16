@@ -1,7 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { ThemeProvider, DefaultTheme, Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -113,8 +112,16 @@ function RootNav() {
           }}
         />
         <Stack.Screen name="live" options={{ title: 'Live Classes' }} />
-        <Stack.Screen name="ai" options={{ title: 'QuickX AI' }} />
-        <Stack.Screen name="trading" options={{ title: 'AI Trading' }} />
+        <Stack.Screen name="events/index" options={{ headerShown: false }} />
+        <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="events/my-tickets" options={{ title: 'My tickets' }} />
+        <Stack.Screen name="ptrading/index" options={{ headerShown: false }} />
+        <Stack.Screen name="ptrading/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="ptrading/create" options={{ title: 'Launch a pie', presentation: 'modal' }} />
+        <Stack.Screen name="downloads/index" options={{ title: 'Downloads' }} />
+        <Stack.Screen name="downloads/play" options={{ title: 'Offline lesson', headerShown: false }} />
+        <Stack.Screen name="certificates/index" options={{ title: 'My certificates' }} />
+        <Stack.Screen name="certificates/[code]" options={{ title: 'Certificate' }} />
         <Stack.Screen name="bookings/index" options={{ title: 'My Bookings' }} />
         <Stack.Screen name="my-courses/index" options={{ title: 'My courses' }} />
         <Stack.Screen name="saved-courses/index" options={{ title: 'Saved courses' }} />
@@ -125,8 +132,6 @@ function RootNav() {
         <Stack.Screen name="book/[id]" options={{ title: 'Book' }} />
         <Stack.Screen name="book/[id]/read" options={{ title: 'Read' }} />
         <Stack.Screen name="book/cart" options={{ title: 'Cart' }} />
-        <Stack.Screen name="analysis/index" options={{ title: 'Analysis' }} />
-        <Stack.Screen name="analysis/premium" options={{ title: 'Premium analysis' }} />
         <Stack.Screen name="creator" options={{ headerShown: false }} />
         <Stack.Screen name="communities/index" options={{ title: 'Communities' }} />
         <Stack.Screen name="community/[tutorId]/index" options={{ title: 'Community' }} />

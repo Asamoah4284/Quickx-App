@@ -4,21 +4,29 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MentorshipCard } from '@/components/ui/MentorshipCard';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { colors, radii, spacing } from '@/constants/theme';
+import { useAppState } from '@/context/AppState';
+import { mentorshipPlans, mentorshipWhatsAppUrl } from '@/data/mentorshipPlans';
 import { fetchMentorships } from '@/utils/community';
+import { formatCurrency } from '@/utils/format';
 
 const FILTERS = [
   { id: 'all', label: 'All sessions' },
@@ -28,6 +36,9 @@ const FILTERS = [
 
 export default function MentorshipScreen() {
   const router = useRouter();
+  const { user } = useAppState();
+  const [plan, setPlan] = useState(null);
+  const [planName, setPlanName] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [items, setItems] = useState([]);
@@ -69,12 +80,30 @@ export default function MentorshipScreen() {
     filtered.find((item) => item.isPremium) || filtered[0] || null;
   const list = featured ? filtered.filter((item) => item.id !== featured.id) : filtered;
 
+  const choosePlan = (next) => {
+    setPlanName(user?.fullName || '');
+    setPlan(next);
+  };
+
   const onSessionPress = (session) => {
     if (session.isPremium) {
-      router.push('/analysis/premium');
+      choosePlan(mentorshipPlans.find((p) => p.popular) || mentorshipPlans[0]);
       return;
     }
-    router.push('/analysis');
+    Alert.alert(
+      session.title,
+      [session.mentor, [session.date, session.time].filter(Boolean).join(' · '), session.summary].filter(Boolean).join('\n\n')
+    );
+  };
+
+  const contactOnWhatsApp = () => {
+    if (!planName.trim()) {
+      Alert.alert('Your name', 'Add your name so the team knows who’s paying.');
+      return;
+    }
+    const url = mentorshipWhatsAppUrl(planName.trim(), plan);
+    setPlan(null);
+    Linking.openURL(url).catch(() => Alert.alert('WhatsApp not available', 'Message +233 55 575 6303 to pay for your plan.'));
   };
 
   return (
@@ -186,16 +215,40 @@ export default function MentorshipScreen() {
           />
         )}
 
-        <PrimaryButton
-          label="Analysis & plans"
-          onPress={() => router.push('/analysis')}
-          style={{ marginTop: spacing.xl }}
-        />
+        <Text style={styles.section}>Trading mentorship plans</Text>
+        <Text style={styles.plansLede}>
+          Practical one-on-one coaching after the school — strategy sharpening, reviews and signals. Pay via WhatsApp.
+        </Text>
+        {mentorshipPlans.map((p) => (
+          <PressableScale key={p.id} style={[styles.plan, p.popular && styles.planPopular]} onPress={() => choosePlan(p)}>
+            <View style={styles.planHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.planDuration}>{p.duration}</Text>
+                <Text style={styles.planDesc}>{p.description}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                {p.popular ? (
+                  <View style={styles.popular}>
+                    <Text style={styles.popularText}>Most popular</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.planPrice}>{formatCurrency(p.price)}</Text>
+              </View>
+            </View>
+            {p.features.map((f) => (
+              <View key={f} style={styles.feature}>
+                <FontAwesome name="check" size={11} color={colors.success} />
+                <Text style={styles.featureText}>{f}</Text>
+              </View>
+            ))}
+          </PressableScale>
+        ))}
+
         <PrimaryButton
           label="Find a mentor"
           variant="secondary"
           onPress={() => router.push('/tutors')}
-          style={{ marginTop: spacing.sm }}
+          style={{ marginTop: spacing.lg }}
         />
         <PrimaryButton
           label="My communities"
@@ -204,11 +257,58 @@ export default function MentorshipScreen() {
           style={{ marginTop: spacing.sm }}
         />
       </ScrollView>
+
+      <BottomSheet
+        visible={Boolean(plan)}
+        onClose={() => setPlan(null)}
+        title={plan ? `${plan.duration} mentorship` : ''}
+        subtitle={plan ? `${formatCurrency(plan.price)} · we’ll open WhatsApp so you can complete payment with the team.` : ''}>
+        <Text style={styles.sheetLabel}>Your name</Text>
+        <TextInput
+          value={planName}
+          onChangeText={setPlanName}
+          placeholder="Full name"
+          placeholderTextColor={colors.muted}
+          style={styles.sheetInput}
+          autoCapitalize="words"
+        />
+        <PrimaryButton label="Continue on WhatsApp" icon="whatsapp" onPress={contactOnWhatsApp} style={{ backgroundColor: '#1FAF54' }} />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  plansLede: { color: colors.muted, fontSize: 13, lineHeight: 19, marginBottom: spacing.md },
+  plan: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  planPopular: { borderColor: colors.primary, borderWidth: 1.5 },
+  planHead: { flexDirection: 'row', marginBottom: spacing.sm },
+  planDuration: { fontSize: 18, fontWeight: '800', color: colors.text },
+  planDesc: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  planPrice: { fontSize: 20, fontWeight: '800', color: colors.primary, marginTop: 4 },
+  popular: { backgroundColor: colors.gold, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
+  popularText: { fontSize: 10, fontWeight: '800', color: colors.navy },
+  feature: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6 },
+  featureText: { color: colors.text, fontSize: 13, flex: 1 },
+  sheetLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, marginBottom: 6, textTransform: 'uppercase' },
+  sheetInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
   safe: { flex: 1, backgroundColor: colors.surface },
   scroll: {
     paddingHorizontal: spacing.lg,

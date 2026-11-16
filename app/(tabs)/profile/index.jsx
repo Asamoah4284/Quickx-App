@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CreatorStatusBadge } from '@/components/creator/CreatorOnboardingParts';
@@ -18,12 +18,16 @@ import { creatorStatusLabel, fetchCreatorProfile } from '@/utils/creator';
 
 const BASE_LEARNING = [
   { id: 'mycourses', label: 'My courses', hint: 'Watch courses you’ve bought', icon: 'play-circle', href: '/my-courses' },
+  { id: 'downloads', label: 'Downloads', hint: 'Lessons saved for offline', icon: 'download', href: '/downloads' },
+  { id: 'certificates', label: 'Certificates', hint: 'Share what you’ve completed', icon: 'certificate', href: '/certificates' },
   { id: 'learning', label: 'Browse catalog', hint: 'Explore all courses', icon: 'graduation-cap', href: '/(tabs)/learn' },
   { id: 'teaching', label: 'Creator studio', hint: 'Dashboard, courses, books, and earnings', icon: 'briefcase', href: '/creator' },
   { id: 'programs', label: 'Creator programs', hint: 'Apply free to teach on QuickX', icon: 'trophy', href: '/programs' },
   { id: 'communities', label: 'Communities', hint: 'Tutor feeds, Q&A, and resources', icon: 'comments', href: '/communities' },
   { id: 'saved', label: 'Saved courses', hint: 'Pick up later', icon: 'bookmark-o', href: '/saved-courses' },
   { id: 'bookings', label: 'Sessions', hint: 'Upcoming and past bookings', icon: 'calendar', href: '/bookings' },
+  { id: 'tickets', label: 'My event tickets', hint: 'Masterclasses and workshops', icon: 'ticket', href: '/events/my-tickets' },
+  { id: 'ptrading', label: 'Pie Trading', hint: 'Your slices and pooled trades', icon: 'pie-chart', href: '/ptrading' },
   { id: 'tutors', label: 'Tutors', hint: 'People you follow and book', icon: 'users', href: '/tutors' },
 ];
 
@@ -32,9 +36,6 @@ const ACCOUNT = [
   { id: 'referrals', label: 'Referrals', hint: 'Your code and earnings', icon: 'gift', href: '/referrals' },
   { id: 'notifications', label: 'Notifications', hint: 'Reminders and offers', icon: 'bell-o', href: '/notifications' },
   { id: 'live', label: 'Live classes', hint: 'Upcoming broadcasts', icon: 'video-camera', href: '/live' },
-  { id: 'ai', label: 'QuickX AI', hint: 'Study assistant', icon: 'magic', href: '/ai' },
-  { id: 'trading', label: 'AI Trading', hint: 'Educational trading hub', icon: 'line-chart', href: '/trading' },
-  { id: 'analysis', label: 'Analysis & mentorship', hint: 'Plans and market insights', icon: 'bar-chart', href: '/analysis' },
 ];
 
 export default function ProfileScreen() {
@@ -206,7 +207,14 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            <Pressable style={styles.signOut} onPress={logout}>
+            <Pressable
+              style={styles.signOut}
+              onPress={() =>
+                Alert.alert('Sign out?', 'You’ll need to sign in again to access your courses and wallet.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign out', style: 'destructive', onPress: logout },
+                ])
+              }>
               <Text style={styles.signOutText}>Sign out</Text>
             </Pressable>
           </View>

@@ -147,10 +147,11 @@ export default function LearningAreaScreen() {
       ) : null}
 
       {pct >= 100 && course.hasCertificate ? (
-        <View style={styles.cert}>
+        <Pressable style={styles.cert} onPress={() => router.push('/certificates')} accessibilityRole="button">
           <FontAwesome name="certificate" size={22} color={colors.warning} />
-          <Text style={styles.certText}>Certificate unlocked</Text>
-        </View>
+          <Text style={[styles.certText, { flex: 1 }]}>Certificate unlocked — view & share</Text>
+          <FontAwesome name="chevron-right" size={12} color={colors.warning} />
+        </Pressable>
       ) : null}
 
       <Text style={[typography.h3, { marginBottom: spacing.md }]}>Curriculum</Text>

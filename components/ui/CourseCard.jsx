@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 
 import { Badge } from '@/components/ui/Badge';
 import { colors, radii, spacing } from '@/constants/theme';
+import { formatPriceCedi } from '@/utils/format';
 
 export function CourseCard({ course, horizontal = false, featured = false, subtitle, layout }) {
   const router = useRouter();
-  const priceLabel = course.price === 0 ? 'Free' : `₵${course.price}`;
+  const priceLabel = formatPriceCedi(course.price);
   const isRow = layout === 'row';
   const compact = horizontal && !featured && !isRow;
 

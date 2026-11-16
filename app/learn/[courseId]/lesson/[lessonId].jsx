@@ -19,23 +19,72 @@ import { useAppState } from '@/context/AppState';
 import {
   fetchCourseFull,
   fetchCoursePreview,
-  fetchLessonDownload,
   flattenCourseLessons,
   updateCourseProgress,
 } from '@/utils/catalog';
-import { API_BASE } from '@/constants/api';
 import { getCachedCourseFull } from '@/utils/courseCache';
-import { openExternalUrl } from '@/utils/openUrl';
+import { haptics } from '@/utils/haptics';
+import {
+  downloadLesson,
+  formatBytes,
+  getOfflineLesson,
+  offlineSupported,
+  removeOfflineLesson,
+} from '@/utils/offlineLessons';
 
 export default function LessonScreen() {
   const { courseId, lessonId } = useLocalSearchParams();
   const router = useRouter();
   const navigation = useNavigation();
   const allowLeaveRef = useRef(false);
-  const { markLessonComplete, setLastLesson, enrolledCourses, token, isEnrolled } = useAppState();
+  const { markLessonComplete, setLastLesson, enrolledCourses, token, isEnrolled, user } = useAppState();
   const courseKey = String(courseId);
   const [course, setCourse] = useState(() => getCachedCourseFull(courseKey));
   const [loading, setLoading] = useState(() => !getCachedCourseFull(courseKey));
+  const [offline, setOffline] = useState(null);
+  const [downloadPct, setDownloadPct] = useState(null); // null = idle, 0..1 = downloading
+  const userId = user?.id || user?._id;
+
+  useEffect(() => {
+    let alive = true;
+    getOfflineLesson(courseKey, String(lessonId), userId).then((entry) => alive && setOffline(entry));
+    return () => {
+      alive = false;
+    };
+  }, [courseKey, lessonId, userId]);
+
+  const onDownload = async () => {
+    setDownloadPct(0);
+    try {
+      const entry = await downloadLesson({
+        courseId: courseKey,
+        lessonId: String(lessonId),
+        token,
+        userId,
+        onProgress: (p) => setDownloadPct(p),
+      });
+      setOffline(entry);
+      haptics.success();
+    } catch (error) {
+      haptics.error();
+      Alert.alert('Download unavailable', error.message || 'Requires Premium/Diamond or course purchase.');
+    } finally {
+      setDownloadPct(null);
+    }
+  };
+
+  const onRemoveDownload = () =>
+    Alert.alert('Remove download?', 'You’ll need an internet connection to watch this lesson again.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          await removeOfflineLesson(courseKey, String(lessonId));
+          setOffline(null);
+        },
+      },
+    ]);
 
   const goToLearningArea = useCallback(() => {
     allowLeaveRef.current = true;
@@ -151,7 +200,9 @@ export default function LessonScreen() {
     );
   }
 
-  const canPlay = Boolean(lesson.videoUrl);
+  // A saved copy plays without internet; otherwise stream.
+  const videoUri = offline?.uri || lesson.videoUrl;
+  const canPlay = Boolean(videoUri);
   const subtitle = [lesson.moduleTitle, lesson.sectionTitle].filter(Boolean).join(' · ');
 
   return (
@@ -163,7 +214,7 @@ export default function LessonScreen() {
         bounces={false}>
         {canPlay ? (
           <LessonVideoPlayer
-            uri={lesson.videoUrl}
+            uri={videoUri}
             posterUri={course.thumbnail}
             title={lesson.title}
             subtitle={course.title}
@@ -255,27 +306,42 @@ export default function LessonScreen() {
             style={{ marginTop: spacing.lg }}
           />
 
-          {token && token !== 'local' && !lesson.isLocked && lesson.videoUrl ? (
-            <PrimaryButton
-              label="Download for offline"
-              variant="ghost"
-              style={{ marginTop: spacing.sm }}
-              onPress={async () => {
-                try {
-                  const data = await fetchLessonDownload(courseKey, lesson.id, token);
-                  const origin = API_BASE.replace(/\/api\/?$/, '');
-                  const path = data.streamPath || data.url || '';
-                  if (!path) throw new Error('No download URL returned.');
-                  const url = path.startsWith('http') ? path : `${origin}${path}`;
-                  await openExternalUrl(url);
-                } catch (error) {
-                  Alert.alert(
-                    'Download unavailable',
-                    error.message || 'Requires Premium/Diamond or course purchase.'
-                  );
-                }
-              }}
-            />
+          {offline ? (
+            <View style={styles.offlineCard}>
+              <FontAwesome name="check-circle" size={18} color={colors.success} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.offlineTitle}>Saved for offline</Text>
+                <Text style={styles.offlineMeta}>
+                  {offline.size ? `${formatBytes(offline.size)} · ` : ''}
+                  {offline.expiresAt
+                    ? `available until ${new Date(offline.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                    : 'plays without internet'}
+                </Text>
+              </View>
+              <Pressable onPress={onRemoveDownload} hitSlop={10} accessibilityLabel="Remove download">
+                <FontAwesome name="trash-o" size={18} color={colors.muted} />
+              </Pressable>
+            </View>
+          ) : offlineSupported && token && token !== 'local' && !lesson.isLocked && lesson.videoUrl ? (
+            downloadPct != null ? (
+              <View style={styles.offlineCard}>
+                <ActivityIndicator color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.offlineTitle}>Downloading… {Math.round(downloadPct * 100)}%</Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.max(3, downloadPct * 100)}%` }]} />
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <PrimaryButton
+                label="Download for offline"
+                icon="download"
+                variant="ghost"
+                style={{ marginTop: spacing.sm }}
+                onPress={onDownload}
+              />
+            )
           ) : null}
 
           {next ? (
@@ -420,5 +486,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   navChipDisabled: { opacity: 0.55 },
+  offlineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  offlineTitle: { fontWeight: '700', color: colors.text },
+  offlineMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: '#E6ECF5', marginTop: 6, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
   navChipText: { color: colors.navy, fontWeight: '700', fontSize: 13 },
 });

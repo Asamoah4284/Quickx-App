@@ -19,6 +19,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { colors, radii, spacing } from '@/constants/theme';
 import { categories, levels, priceFilters } from '@/data/categories';
+import { toGhs } from '@/utils/currency';
 import { fetchCourses } from '@/utils/catalog';
 
 const RATING_OPTIONS = [
@@ -76,9 +77,10 @@ export default function CoursesScreen() {
       const matchesRating = rating === 'all' || Number(c.rating) >= Number(rating);
       let matchesPrice = true;
       if (price === 'free') matchesPrice = c.price === 0;
-      if (price === 'under100') matchesPrice = c.price > 0 && c.price < 100;
-      if (price === 'under300') matchesPrice = c.price > 0 && c.price < 300;
-      if (price === 'premium') matchesPrice = c.price >= 300;
+      const ghs = toGhs(c.price); // filters are labelled in cedis
+      if (price === 'under100') matchesPrice = ghs > 0 && ghs < 100;
+      if (price === 'under300') matchesPrice = ghs > 0 && ghs < 300;
+      if (price === 'premium') matchesPrice = ghs >= 300;
       return matchesQ && matchesCat && matchesLevel && matchesRating && matchesPrice;
     });
   }, [courses, query, category, level, price, rating]);

@@ -2,20 +2,15 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CourseCard } from '@/components/ui/CourseCard';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { colors, radii, spacing } from '@/constants/theme';
 import { hubTiles } from '@/data/categories';
@@ -43,47 +38,36 @@ export default function HomeScreen() {
   const [courses, setCourses] = useState([]);
   const [continueCourse, setContinueCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const load = useCallback(
+    async (isAlive = () => true) => {
+      const signedIn = token && token !== 'local';
+      // Fetch in parallel — the hero, carousel and badge don't depend on each other.
+      const [courseList, purchased, noteData] = await Promise.all([
+        fetchCourses().catch(() => []),
+        signedIn ? fetchPurchasedCourses(token).catch(() => []) : Promise.resolve([]),
+        signedIn ? fetchNotifications(token, { unreadOnly: true }).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (!isAlive()) return;
+      setCourses(courseList);
+      setContinueCourse(purchased[0] || null);
+      setUnreadCount(noteData?.unreadCount || 0);
+      setLoading(false);
+      setRefreshing(false);
+    },
+    [token]
+  );
 
   useEffect(() => {
     let alive = true;
-
-    (async () => {
-      setLoading(true);
-      try {
-        const courseList = await fetchCourses();
-        if (!alive) return;
-        setCourses(courseList);
-
-        if (token && token !== 'local') {
-          try {
-            const purchased = await fetchPurchasedCourses(token);
-            if (alive) setContinueCourse(purchased[0] || null);
-          } catch {
-            if (alive) setContinueCourse(null);
-          }
-          try {
-            const noteData = await fetchNotifications(token, { unreadOnly: true });
-            if (alive) setUnreadCount(noteData.unreadCount);
-          } catch {
-            if (alive) setUnreadCount(0);
-          }
-        } else if (alive) {
-          setContinueCourse(null);
-          setUnreadCount(0);
-        }
-      } catch {
-        if (!alive) return;
-        setCourses([]);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-
+    setLoading(true);
+    load(() => alive);
     return () => {
       alive = false;
     };
-  }, [token]);
+  }, [load]);
 
   const recommended = courses.slice(0, 8);
   const topics = Array.from(
@@ -110,7 +94,17 @@ export default function HomeScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor={colors.white}
+              onRefresh={() => {
+                setRefreshing(true);
+                load();
+              }}
+            />
+          }>
           <View style={styles.hero}>
             <View style={styles.heroTop}>
               <Pressable style={styles.avatar} onPress={() => router.push('/(tabs)/profile')}>
@@ -139,10 +133,16 @@ export default function HomeScreen() {
 
           <View style={styles.sheet}>
             {continueCourse ? (
-              <Pressable
+              <PressableScale
                 style={styles.continue}
+                scaleTo={0.98}
                 onPress={() => router.push(`/course/${continueCourse.id}`)}>
-                <Image source={continueCourse.thumbnail ? { uri: continueCourse.thumbnail } : undefined} style={styles.continueImage} />
+                <Image
+                  source={continueCourse.thumbnail ? { uri: continueCourse.thumbnail } : undefined}
+                  style={styles.continueImage}
+                  contentFit="cover"
+                  transition={200}
+                />
                 <LinearGradient
                   colors={['transparent', 'rgba(7,21,47,0.92)']}
                   style={styles.continueFade}
@@ -162,15 +162,18 @@ export default function HomeScreen() {
                     <View style={[styles.barFill, { width: `${continueCourse.pct}%` }]} />
                   </View>
                 </View>
-              </Pressable>
+              </PressableScale>
             ) : null}
 
             <Text style={styles.sectionEyebrow}>Explore</Text>
             <View style={styles.hubGrid}>
               {hubTiles.map((tile) => (
-                <Pressable
+                <PressableScale
                   key={tile.id}
                   style={styles.hubTile}
+                  scaleTo={0.94}
+                  accessibilityRole="button"
+                  accessibilityLabel={tile.label}
                   onPress={() => router.push(tile.href)}>
                   <View style={styles.hubIcon}>
                     <FontAwesome name={tile.icon} size={16} color={colors.primary} />
@@ -178,7 +181,7 @@ export default function HomeScreen() {
                   <Text style={styles.hubLabel} numberOfLines={2}>
                     {tile.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
 
@@ -198,9 +201,13 @@ export default function HomeScreen() {
               contentContainerStyle={styles.carousel}
               nestedScrollEnabled>
               {loading ? (
-                <View style={styles.loader}>
-                  <ActivityIndicator color={colors.primary} />
-                </View>
+                [0, 1, 2].map((i) => (
+                  <View key={i} style={styles.loader}>
+                    <Skeleton height={110} radius={radii.lg} />
+                    <Skeleton width="80%" height={12} style={{ marginTop: spacing.sm }} />
+                    <Skeleton width="50%" height={10} style={{ marginTop: 6 }} />
+                  </View>
+                ))
               ) : recommended.length ? (
                 recommended.map((course) => (
                   <CourseCard
@@ -439,9 +446,7 @@ const styles = StyleSheet.create({
   },
   loader: {
     width: 188,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: spacing.md,
   },
   emptyText: {
     color: colors.muted,
