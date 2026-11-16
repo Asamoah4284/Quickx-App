@@ -105,10 +105,10 @@ export default function LearningAreaScreen() {
         <Stack.Screen options={{ title: 'My course' }} />
         <Text style={typography.h3}>You don’t have access yet</Text>
         <Text style={[typography.caption, { marginTop: spacing.sm, lineHeight: 20 }]}>
-          Buy this course to unlock the full learning area and watch lessons.
+          Get Courses access to watch every lesson in this course.
         </Text>
         <PrimaryButton
-          label="View course"
+          label="See how to get access"
           onPress={() => router.replace(`/course/${courseId}`)}
           style={{ marginTop: spacing.lg }}
         />
@@ -146,13 +146,6 @@ export default function LearningAreaScreen() {
         />
       ) : null}
 
-      {pct >= 100 && course.hasCertificate ? (
-        <Pressable style={styles.cert} onPress={() => router.push('/certificates')} accessibilityRole="button">
-          <FontAwesome name="certificate" size={22} color={colors.warning} />
-          <Text style={[styles.certText, { flex: 1 }]}>Certificate unlocked — view & share</Text>
-          <FontAwesome name="chevron-right" size={12} color={colors.warning} />
-        </Pressable>
-      ) : null}
 
       <Text style={[typography.h3, { marginBottom: spacing.md }]}>Curriculum</Text>
       {course.curriculum.map((mod) => (

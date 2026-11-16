@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   boxActive: {
     borderColor: colors.gold,
-    backgroundColor: '#FFFBF0',
+    backgroundColor: 'rgba(245,184,74,0.10)',
   },
   boxError: {
     borderColor: colors.danger,

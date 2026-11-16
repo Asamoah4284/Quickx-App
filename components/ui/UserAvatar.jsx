@@ -21,7 +21,7 @@ export function UserAvatar({ size = 40, fontSize = 16, style }) {
 export function CameraBadge({ size = 28 }) {
   return (
     <View style={[styles.badge, { width: size, height: size, borderRadius: size / 2 }]}>
-      <FontAwesome name="camera" size={size * 0.38} color={colors.navy} />
+      <FontAwesome name="camera" size={size * 0.38} color={colors.text} />
     </View>
   );
 }

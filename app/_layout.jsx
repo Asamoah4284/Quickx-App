@@ -1,152 +1,135 @@
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import Feather from '@expo/vector-icons/Feather';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useFonts } from 'expo-font';
-import { ThemeProvider, DefaultTheme, Stack, useRouter, useSegments } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { DarkTheme, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { useEffect, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
-import { BackHandler, StyleSheet, View } from 'react-native';
-
+import { ActionSheetHost } from '@/components/ui/ActionSheet';
+import { LogoMark } from '@/components/ui/Logo';
+import { fonts, t } from '@/constants/theme';
 import { AppStateProvider, useAppState } from '@/context/AppState';
-import { colors } from '@/constants/theme';
+import { appRouteFor } from '@/utils/pushNotifications';
 
 export { ErrorBoundary } from 'expo-router';
 
-export const unstable_settings = {
-  initialRouteName: '(tabs)',
-};
+export const unstable_settings = { initialRouteName: '(tabs)' };
 
 SplashScreen.preventAutoHideAsync();
 
 const navTheme = {
-  ...DefaultTheme,
+  ...DarkTheme,
   colors: {
-    ...DefaultTheme.colors,
-    primary: colors.primary,
-    background: colors.surface,
-    card: colors.card,
-    text: colors.text,
-    border: colors.border,
-    notification: colors.accent,
+    ...DarkTheme.colors,
+    primary: t.brand400,
+    background: t.bg,
+    card: t.bgRaised,
+    text: t.fg,
+    border: t.line,
+    notification: t.down,
   },
 };
 
-function AuthRedirect() {
-  const { user, authReady } = useAppState();
+/** Opens the sign-in sheet when something calls requireSignIn(). */
+function SignInWatcher() {
+  const { signInPrompt } = useAppState();
   const segments = useSegments();
-  const router = useRouter();
-
+  const inAuth = segments[0] === '(auth)';
   useEffect(() => {
-    if (!authReady) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
-  }, [user, authReady, segments, router]);
-
-  useEffect(() => {
-    if (!user) return undefined;
-    const onBack = () => {
-      if (segments[0] === '(tabs)' || segments[0] === '(auth)') return true;
-      return false;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => sub.remove();
-  }, [user, segments]);
-
+    if (signInPrompt && !inAuth) router.push('/(auth)/login');
+  }, [signInPrompt, inAuth]);
   return null;
 }
 
+/** Tapping a notification opens the matching screen. */
+function NotificationRouter() {
+  const last = Notifications.useLastNotificationResponse();
+  const handled = useRef(null);
+  useEffect(() => {
+    if (!last || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const id = last.notification.request.identifier;
+    if (handled.current === id) return;
+    handled.current = id;
+    const url = last.notification.request.content.data?.url;
+    router.push(appRouteFor(url));
+  }, [last]);
+  return null;
+}
+
+const stack = {
+  headerShown: false,
+  contentStyle: { backgroundColor: t.bg },
+  animation: 'slide_from_right',
+  gestureEnabled: true,
+  fullScreenGestureEnabled: false,
+};
+
+/** Screens kept from the earlier app still use the native header, styled dark. */
+const header = (title) => ({
+  headerShown: true,
+  title,
+  headerStyle: { backgroundColor: t.bg },
+  headerTintColor: t.fg,
+  headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 16 },
+  headerShadowVisible: false,
+  headerBackTitle: 'Back',
+});
+
 function RootNav() {
   const { authReady } = useAppState();
-
   return (
-    <View style={{ flex: 1 }}>
-      <AuthRedirect />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.card },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          headerBackTitle: 'Back',
-          contentStyle: { backgroundColor: colors.surface },
-          animation: 'slide_from_right',
-          animationDuration: 380,
-          gestureEnabled: true,
-          // Edge swipe only — full-screen gesture fights vertical scrolling (Learning Area, feeds, etc.)
-          fullScreenGestureEnabled: false,
-          gestureDirection: 'horizontal',
-        }}>
-        <Stack.Screen
-          name="(auth)"
-          options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-            animation: 'none',
-            gestureEnabled: false,
-            fullScreenGestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="learn/[courseId]/index"
-          options={{ title: 'Learning area', fullScreenGestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="learn/[courseId]/lesson/[lessonId]"
-          options={{ title: 'Lesson', fullScreenGestureEnabled: false }}
-        />
-        <Stack.Screen name="tutors/index" options={{ title: 'Find a Tutor' }} />
-        <Stack.Screen name="wallet/index" options={{ title: 'QuickX Wallet' }} />
-        <Stack.Screen
-          name="notifications"
-          options={{
-            title: 'Notifications',
-            presentation: 'card',
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen name="live" options={{ title: 'Live Classes' }} />
-        <Stack.Screen name="events/index" options={{ headerShown: false }} />
-        <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="events/my-tickets" options={{ title: 'My tickets' }} />
-        <Stack.Screen name="ptrading/index" options={{ headerShown: false }} />
-        <Stack.Screen name="ptrading/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="ptrading/create" options={{ title: 'Launch a pie', presentation: 'modal' }} />
-        <Stack.Screen name="downloads/index" options={{ title: 'Downloads' }} />
-        <Stack.Screen name="downloads/play" options={{ title: 'Offline lesson', headerShown: false }} />
-        <Stack.Screen name="certificates/index" options={{ title: 'My certificates' }} />
-        <Stack.Screen name="certificates/[code]" options={{ title: 'Certificate' }} />
-        <Stack.Screen name="bookings/index" options={{ title: 'My Bookings' }} />
-        <Stack.Screen name="my-courses/index" options={{ title: 'My courses' }} />
-        <Stack.Screen name="saved-courses/index" options={{ title: 'Saved courses' }} />
-        <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
-        <Stack.Screen name="referrals/index" options={{ title: 'Referrals' }} />
-        <Stack.Screen name="programs/index" options={{ title: 'Creator onboarding' }} />
-        <Stack.Screen name="programs/[slug]" options={{ title: 'Program' }} />
-        <Stack.Screen name="book/[id]" options={{ title: 'Book' }} />
-        <Stack.Screen name="book/[id]/read" options={{ title: 'Read' }} />
-        <Stack.Screen name="book/cart" options={{ title: 'Cart' }} />
-        <Stack.Screen name="creator" options={{ headerShown: false }} />
-        <Stack.Screen name="communities/index" options={{ title: 'Communities' }} />
-        <Stack.Screen name="community/[tutorId]/index" options={{ title: 'Community' }} />
-        <Stack.Screen name="subscribe/[tutorId]" options={{ title: 'Subscribe' }} />
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <SignInWatcher />
+      <NotificationRouter />
+      <Stack screenOptions={stack}>
+        <Stack.Screen name="(tabs)" options={{ animation: 'none', gestureEnabled: false }} />
+        <Stack.Screen name="(auth)" options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true }} />
+        <Stack.Screen name="learn/[courseId]/index" options={header('Learning area')} />
+        <Stack.Screen name="learn/[courseId]/lesson/[lessonId]" />
+        <Stack.Screen name="downloads/index" options={header('Downloads')} />
+        <Stack.Screen name="downloads/play" />
+        <Stack.Screen name="book/[id]/read" options={header('Read')} />
+        <Stack.Screen name="events/my-tickets" options={header('My tickets')} />
+        <Stack.Screen name="notifications" options={header('Notifications')} />
+        <Stack.Screen name="settings/index" options={header('Profile and settings')} />
+        <Stack.Screen name="checkout/[key]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="owner/signal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="payment-done" options={{ animation: 'none' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      {!authReady ? <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.navy }} /> : null}
+      <ActionSheetHost />
+      {!authReady ? (
+        <View style={styles.boot}>
+          <LogoMark size={64} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    ...Feather.font,
     ...FontAwesome.font,
+    ...Ionicons.font,
   });
 
   useEffect(() => {
@@ -162,9 +145,13 @@ export default function RootLayout() {
   return (
     <AppStateProvider>
       <ThemeProvider value={navTheme}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <RootNav />
       </ThemeProvider>
     </AppStateProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  boot: { ...StyleSheet.absoluteFillObject, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
+});

@@ -1,118 +1,165 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 
-import { PaymentCheckout } from '@/components/checkout/PaymentCheckout';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { Screen } from '@/components/ui/Screen';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Alert, Button, Card, Divider, Icon, Row, Txt } from '@/components/ui/kit';
+import { Footer, Page } from '@/components/ui/Page';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { assetUrl } from '@/constants/api';
+import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import { fetchBooks } from '@/utils/catalog';
-import { initializePurchase } from '@/utils/payments';
+import { useApi } from '@/hooks/useApi';
+import { mapBook } from '@/utils/catalog';
 import { formatPriceCedi } from '@/utils/format';
+import { haptics } from '@/utils/haptics';
+import { confirmAgain, confirmers, payWithPaystack } from '@/utils/paystack';
 
 export default function BookCartScreen() {
-  const router = useRouter();
-  const { token, user, cartBookIds, clearCart } = useAppState();
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { token, isSignedIn, requireSignIn, cartBookIds, toggleCartBook, clearCart } = useAppState();
+  const { data, error: loadError } = useApi('/books');
   const [paying, setPaying] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    fetchBooks()
-      .then(setBooks)
-      .catch(() => setBooks([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const cartBooks = useMemo(
-    () => books.filter((b) => cartBookIds.includes(b.id) && b.type === 'digital'),
-    [books, cartBookIds]
-  );
+  const cartBooks = useMemo(() => {
+    const list = (Array.isArray(data) ? data : data?.books || data?.data || []).map(mapBook);
+    return list.filter((b) => cartBookIds.includes(b.id) && b.type !== 'physical');
+  }, [data, cartBookIds]);
   const total = cartBooks.reduce((sum, b) => sum + Number(b.price || 0), 0);
+  const order = { itemType: 'book_cart', items: cartBooks.map((b) => b.id), amount: total };
 
-  const onPay = async ({ phone, email, amount, referralCode, network, onPending }) => {
-    if (!token) return;
+  const succeed = () => {
+    haptics.success();
+    setPending(null);
+    clearCart();
+    setDone(true);
+  };
+
+  const pay = async () => {
+    setError('');
+    let tk = token;
+    if (!isSignedIn) {
+      tk = await requireSignIn('Sign in to check out.');
+      if (!tk) return;
+    }
     setPaying(true);
     try {
-      await initializePurchase({
-        token,
-        itemType: 'book_cart',
-        items: cartBooks.map((b) => b.id),
-        amount,
-        phone,
-        email,
-        referralCode,
-        network,
-        onPending,
-      });
-      clearCart();
-      Alert.alert('Purchase successful', 'Your ebooks are ready in your library.', [
-        { text: 'Browse books', onPress: () => router.replace('/(tabs)/books') },
-      ]);
-    } catch (error) {
-      Alert.alert('Payment failed', error.message || 'Try again.');
+      const outcome = await payWithPaystack({ token: tk, purpose: 'book', body: order, confirm: confirmers.book(tk, order) });
+      if (outcome.status === 'paid') succeed();
+      else if (outcome.status === 'pending') setPending(outcome);
+    } catch (err) {
+      haptics.error();
+      setError(err.message || 'Could not start the payment.');
     } finally {
       setPaying(false);
     }
   };
 
-  if (!token || token === 'local') {
+  const checkAgain = async () => {
+    setPaying(true);
+    const outcome = await confirmAgain(pending.reference, confirmers.book(token, order));
+    setPaying(false);
+    if (outcome.status === 'paid') succeed();
+    else setPending(outcome);
+  };
+
+  if (done) {
     return (
-      <Screen>
-        <Text style={typography.h2}>Cart</Text>
-        <Text style={{ color: colors.muted, marginTop: spacing.md }}>Sign in to checkout your cart.</Text>
-      </Screen>
+      <Page back title="Cart">
+        <Animated.View entering={ZoomIn.springify()}>
+          <EmptyState icon="check-circle" title="Your books are ready" subtitle="Open any of them from the books page to start reading.">
+            <Button label="Go to books" onPress={() => router.replace('/books')} />
+          </EmptyState>
+        </Animated.View>
+      </Page>
     );
   }
 
-  if (loading) {
+  if (!data && !loadError) {
     return (
-      <Screen scroll={false} contentStyle={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-      </Screen>
+      <Page back title="Cart">
+        <Skeleton height={160} radius={20} />
+      </Page>
     );
   }
 
   if (!cartBooks.length) {
     return (
-      <Screen>
-        <Text style={typography.h2}>Cart</Text>
-        <Text style={{ color: colors.muted, marginTop: spacing.md }}>Add digital books to your cart from the store.</Text>
-        <PrimaryButton label="Browse books" onPress={() => router.push('/(tabs)/books')} style={{ marginTop: spacing.xl }} />
-      </Screen>
+      <Page back title="Cart">
+        <EmptyState icon="shopping-bag" title="Your cart is empty" subtitle="Add e-books from the store to buy several at once.">
+          <Button label="Browse books" onPress={() => router.replace('/books')} />
+        </EmptyState>
+      </Page>
     );
   }
 
   return (
-    <Screen>
-      <Text style={typography.h2}>Cart ({cartBooks.length})</Text>
-      {cartBooks.map((book) => (
-        <Pressable key={book.id} style={styles.row} onPress={() => router.push(`/book/${book.id}`)}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{book.title}</Text>
-            <Text style={styles.meta}>{book.author}</Text>
-          </View>
-          <Text style={styles.price}>{formatPriceCedi(book.price)}</Text>
-        </Pressable>
-      ))}
-      <Text style={styles.total}>Total: {formatPriceCedi(total)}</Text>
-      <PaymentCheckout title="Checkout cart" subtitle={`${cartBooks.length} ebook(s)`} price={total} user={user} paying={paying} onPay={onPay} />
-    </Screen>
+    <Page
+      back
+      title="Cart"
+      subtitle={`${cartBooks.length} e-book${cartBooks.length === 1 ? '' : 's'}`}
+      footer={
+        <Footer>
+          {pending ? (
+            <Button size="lg" icon="refresh-cw" label="Check payment again" loading={paying} onPress={checkAgain} />
+          ) : (
+            <Button size="lg" label={`Pay ${formatPriceCedi(total)}`} loading={paying} onPress={pay} />
+          )}
+        </Footer>
+      }>
+      <View style={{ gap: 14 }}>
+        <Card padded={false}>
+          {cartBooks.map((book, i) => (
+            <View key={book.id}>
+              {i ? <Divider /> : null}
+              <Row gap={12} style={{ padding: 12 }}>
+                <PressableScale onPress={() => router.push(`/book/${book.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View style={styles.thumb}>
+                    {book.cover ? <Image source={{ uri: assetUrl(book.cover) }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name="book" size={18} color={t.fgSubtle} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt size={14.5} weight="semibold" numberOfLines={2}>
+                      {book.title}
+                    </Txt>
+                    <Txt size={13} weight="bold" color={t.brand300} tabular style={{ marginTop: 2 }}>
+                      {formatPriceCedi(book.price)}
+                    </Txt>
+                  </View>
+                </PressableScale>
+                <PressableScale haptic="select" hitSlop={10} onPress={() => toggleCartBook(book.id)} accessibilityLabel={`Remove ${book.title}`}>
+                  <Icon name="x" size={18} color={t.fgSubtle} />
+                </PressableScale>
+              </Row>
+            </View>
+          ))}
+        </Card>
+        <Row justify="space-between">
+          <Txt size={15} color={t.fgMuted}>
+            Total
+          </Txt>
+          <Txt size={20} weight="bold" tabular>
+            {formatPriceCedi(total)}
+          </Txt>
+        </Row>
+        {error ? <Alert>{error}</Alert> : null}
+        {pending ? (
+          <Alert tone="warn" title="Waiting for your payment">
+            {`${pending.message} You will not be charged twice. Reference: ${pending.reference}`}
+          </Alert>
+        ) : null}
+        <Txt size={12} color={t.fgSubtle} center>
+          Pay with Mobile Money or card through Paystack.
+        </Txt>
+      </View>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  title: { fontWeight: '700', color: colors.text },
-  meta: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  price: { fontWeight: '800', color: colors.primary },
-  total: { fontSize: 18, fontWeight: '800', color: colors.text, marginVertical: spacing.lg },
+  thumb: { width: 46, height: 60, borderRadius: 8, overflow: 'hidden', backgroundColor: t.ink700, alignItems: 'center', justifyContent: 'center' },
 });

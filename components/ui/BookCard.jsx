@@ -88,7 +88,7 @@ export function BookCard({ book, variant = 'grid' }) {
       onPress={() => router.push(`/book/${book.id}`)}
       style={({ pressed }) => [styles.gridCard, shadow.card, pressed && styles.pressed]}>
       <LinearGradient
-        colors={['#F8FAFD', '#EEF2F8']}
+        colors={['#121a2c', '#0d1322']}
         style={styles.gridCoverStage}>
         <View style={styles.gridBadges}>
           <View style={styles.typePill}>

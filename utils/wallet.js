@@ -1,80 +1,32 @@
 import { api } from '@/constants/api';
-import { detectMomoNetwork } from '@/utils/moolre';
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export const NETWORKS = [
+  { value: 'MTN', label: 'MTN' },
+  { value: 'Vodafone', label: 'Telecel' },
+  { value: 'AirtelTigo', label: 'AirtelTigo' },
+];
+
+/** Guess the network from a Ghana number (024, 054… MTN; 020, 050 Telecel; 026, 027… AirtelTigo). */
+export function guessNetwork(phone) {
+  const local = String(phone || '').replace(/\D/g, '').replace(/^233/, '0');
+  const prefix = local.slice(0, 3);
+  if (['024', '025', '053', '054', '055', '059'].includes(prefix)) return 'MTN';
+  if (['020', '050'].includes(prefix)) return 'Vodafone';
+  if (['026', '027', '056', '057'].includes(prefix)) return 'AirtelTigo';
+  return '';
 }
 
-function normalizePhone(phone) {
-  const momo = String(phone || '').replace(/\D/g, '');
-  if (!momo) return '';
-  return momo.length === 10 && momo.startsWith('0') ? momo : `0${momo.slice(-9)}`;
-}
-
-export async function fetchWallet(token) {
+/** Balance, referral earnings, withdrawal rules and history. */
+export function fetchWallet(token) {
   return api('/wallet', { token });
 }
 
-export async function topUpWallet({
-  token,
-  amount,
-  phone,
-  network,
-  otpcode,
-  sessionid,
-  onPending,
-  maxAttempts = 12,
-  intervalMs = 3000,
-}) {
-  const momoNumber = normalizePhone(phone);
-  const initiated = await api('/wallet/topup/initiate', {
-    method: 'POST',
-    token,
-    body: {
-      amount: Number(amount),
-      momoNumber,
-      network: network || detectMomoNetwork(momoNumber),
-      otpcode,
-      sessionid,
-    },
-  });
-
-  if (initiated.completed) return initiated;
-  onPending?.(initiated);
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    await sleep(intervalMs);
-    const verified = await api('/wallet/topup/verify', {
-      method: 'POST',
-      token,
-      body: { transactionId: initiated.transactionId },
-    });
-    if (verified.completed) return verified;
-    if (verified.failed) {
-      throw new Error('Top-up failed or was cancelled');
-    }
-  }
-
-  throw new Error('Top-up is still pending. Approve on your phone, then refresh your wallet.');
+/** Ask for wallet money to be sent to mobile money. The admin pays it out. */
+export function withdrawWallet(token, { amount, momoNumber, network }) {
+  return api('/wallet/withdraw', { method: 'POST', token, body: { amount: Number(amount), momoNumber, network } });
 }
 
-export async function payFromWallet({ token, amount, label }) {
-  return api('/wallet/pay', {
-    method: 'POST',
-    token,
-    body: { amount: Number(amount), label },
-  });
-}
-
-export async function withdrawWallet({ token, amount, phone, network }) {
-  const momoNumber = normalizePhone(phone);
-  return api('/wallet/withdraw', {
-    method: 'POST',
-    token,
-    body: {
-      amount: Number(amount),
-      momoNumber,
-      network,
-    },
-  });
+/** Ask for all referral earnings to be sent to mobile money. */
+export function withdrawReferral(token, { momoNumber, network }) {
+  return api('/withdrawals/withdraw', { method: 'POST', token, body: { momoNumber, network } });
 }

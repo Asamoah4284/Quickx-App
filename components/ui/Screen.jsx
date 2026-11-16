@@ -21,7 +21,7 @@ export function Screen({ children, scroll = true, style, contentStyle, refreshCo
 
   return (
     <SafeAreaView style={[styles.safe, style]} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       {body}
     </SafeAreaView>
   );

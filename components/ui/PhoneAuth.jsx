@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   hintCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7E0',
+    backgroundColor: 'rgba(245,184,74,0.12)',
     borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   hintText: {
     flex: 1,
     marginLeft: 10,
-    color: colors.navy,
+    color: colors.text,
     fontWeight: '600',
     fontSize: 13,
     lineHeight: 18,

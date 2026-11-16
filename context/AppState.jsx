@@ -1,571 +1,313 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { api, isNetworkError } from '@/constants/api';
-import { initialTransactions, initialWallet } from '@/data/wallet';
+import { api, setUnauthorizedHandler } from '@/constants/api';
 import { loginWithEmail as loginWithEmailApi } from '@/utils/auth';
-import { cancelBooking as cancelBookingApi, createBooking as createBookingApi, fetchBookings } from '@/utils/bookings';
-import { registerPushNotifications } from '@/utils/pushNotifications';
 import { loadCurrencySettings } from '@/utils/currency';
-import { fetchWallet, payFromWallet, topUpWallet, withdrawWallet } from '@/utils/wallet';
+import { registerPushNotifications } from '@/utils/pushNotifications';
 
-const AVATAR_KEY = 'quickx.avatarUri';
 const AUTH_KEY = 'quickx.auth';
-const SAVED_COURSES_KEY = 'quickx.savedCourses';
-const BOOKINGS_KEY = 'quickx.bookings';
+const AVATAR_KEY = 'quickx.avatarUri';
+const WISHLIST_KEY = 'quickx.wishlist';
 const CART_KEY = 'quickx.bookCart';
+const PROGRESS_KEY = 'quickx.progress';
 
-const DEBIT_TYPES = new Set(['payment', 'withdraw']);
+const EMPTY_ACCESS = { features: [], entitlements: [], isOwner: false, loaded: false };
 
 const AppStateContext = createContext(null);
 
-function makeId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+function readJson(raw, fallback) {
+  try {
+    const value = JSON.parse(raw);
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
+/**
+ * Who is signed in, what they can open, and small things kept on the phone
+ * (book cart, wishlist, lesson progress).
+ *
+ * People can browse without an account. `requireSignIn(reason)` opens the sign-in sheet
+ * and resolves with the new token once they are signed in (false if they close it),
+ * so an action can carry on afterwards: `const tk = await requireSignIn('...'); if (!tk) return;`
+ */
 export function AppStateProvider({ children }) {
-  const [walletBalance, setWalletBalance] = useState(initialWallet.balance);
-  const balanceRef = useRef(initialWallet.balance);
-  const [transactions, setTransactions] = useState(initialTransactions);
-  const [savedCourses, setSavedCourses] = useState([]);
-  const [wishlistBooks, setWishlistBooks] = useState([]);
-  const [followedTutors, setFollowedTutors] = useState([]);
-  const [enrolledCourses, setEnrolledCourses] = useState({});
-  const [bookings, setBookings] = useState([]);
-  const [cartBookIds, setCartBookIds] = useState([]);
-  const [purchasedBooks, setPurchasedBooks] = useState([]);
-  const [physicalOrders, setPhysicalOrders] = useState([]);
-  const [avatarUri, setAvatarUriState] = useState(null);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [access, setAccess] = useState(EMPTY_ACCESS);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [avatarUri, setAvatarUriState] = useState(null);
+  const [wishlistBooks, setWishlistBooks] = useState([]);
+  const [cartBookIds, setCartBookIds] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState({});
+  const [signInPrompt, setSignInPrompt] = useState(null);
+  const pendingSignIn = useRef(null);
 
+  // ── Start-up: restore the session and local lists ──
   useEffect(() => {
-    AsyncStorage.getItem(AVATAR_KEY)
-      .then((value) => {
-        if (value) setAvatarUriState(value);
-      })
-      .catch(() => {});
-
     Promise.all([
       AsyncStorage.getItem(AUTH_KEY),
-      AsyncStorage.getItem(SAVED_COURSES_KEY),
-      AsyncStorage.getItem(BOOKINGS_KEY),
+      AsyncStorage.getItem(AVATAR_KEY),
+      AsyncStorage.getItem(WISHLIST_KEY),
       AsyncStorage.getItem(CART_KEY),
-      // Prices must be converted before the first screen renders them.
+      AsyncStorage.getItem(PROGRESS_KEY),
       loadCurrencySettings().catch(() => null),
     ])
-      .then(([authRaw, savedRaw, bookingsRaw, cartRaw]) => {
-        if (authRaw) {
-          try {
-            const parsed = JSON.parse(authRaw);
-            if (parsed?.token === 'local' || !parsed?.token) {
-              // Legacy offline demo sessions are no longer supported — require a real sign-in.
-              AsyncStorage.removeItem(AUTH_KEY).catch(() => {});
-            } else if (parsed?.user) {
-              setUser(parsed.user);
-              setToken(parsed.token || null);
-            }
-          } catch {
-            // ignore
-          }
+      .then(([authRaw, avatar, wishRaw, cartRaw, progressRaw]) => {
+        const saved = readJson(authRaw, null);
+        if (saved?.token && saved.token !== 'local' && saved.user) {
+          setUser(saved.user);
+          setToken(saved.token);
+        } else if (authRaw) {
+          AsyncStorage.removeItem(AUTH_KEY).catch(() => {});
         }
-        if (savedRaw) {
-          try {
-            const parsed = JSON.parse(savedRaw);
-            if (Array.isArray(parsed)) setSavedCourses(parsed);
-          } catch {
-            // ignore
-          }
-        }
-        if (bookingsRaw) {
-          try {
-            const parsed = JSON.parse(bookingsRaw);
-            if (Array.isArray(parsed)) setBookings(parsed);
-          } catch {
-            // ignore
-          }
-        }
-        if (cartRaw) {
-          try {
-            const parsed = JSON.parse(cartRaw);
-            if (Array.isArray(parsed)) setCartBookIds(parsed);
-          } catch {
-            // ignore
-          }
-        }
+        if (avatar) setAvatarUriState(avatar);
+        setWishlistBooks(readJson(wishRaw, []));
+        setCartBookIds(readJson(cartRaw, []));
+        setEnrolledCourses(readJson(progressRaw, {}));
       })
       .catch(() => {})
       .finally(() => setAuthReady(true));
   }, []);
 
   useEffect(() => {
-    if (!authReady) return;
-    AsyncStorage.setItem(SAVED_COURSES_KEY, JSON.stringify(savedCourses)).catch(() => {});
-  }, [authReady, savedCourses]);
-
+    if (authReady) AsyncStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlistBooks)).catch(() => {});
+  }, [authReady, wishlistBooks]);
   useEffect(() => {
-    if (!authReady) return;
-    AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings)).catch(() => {});
-  }, [authReady, bookings]);
-
-  useEffect(() => {
-    if (!authReady) return;
-    AsyncStorage.setItem(CART_KEY, JSON.stringify(cartBookIds)).catch(() => {});
+    if (authReady) AsyncStorage.setItem(CART_KEY, JSON.stringify(cartBookIds)).catch(() => {});
   }, [authReady, cartBookIds]);
+  useEffect(() => {
+    if (authReady) AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(enrolledCourses)).catch(() => {});
+  }, [authReady, enrolledCourses]);
 
-  const syncBookings = useCallback(async () => {
-    if (!token || token === 'local') return;
-    try {
-      const list = await fetchBookings(token);
-      setBookings(list);
-    } catch {
-      // keep local cache
-    }
-  }, [token]);
-
+  // ── Session ──
   const persistAuth = useCallback(async (nextUser, nextToken) => {
     setUser(nextUser);
     setToken(nextToken || null);
-    if (nextUser) {
-      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ user: nextUser, token: nextToken || null }));
+    if (nextUser && nextToken) {
+      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ user: nextUser, token: nextToken }));
     } else {
       await AsyncStorage.removeItem(AUTH_KEY);
     }
   }, []);
 
-  const updateUser = useCallback(async (nextUser) => {
-    if (!nextUser) return;
-    setUser(nextUser);
-    const raw = await AsyncStorage.getItem(AUTH_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ ...parsed, user: nextUser }));
-    } catch {
-      // ignore
-    }
-  }, []);
+  const updateUser = useCallback(
+    async (nextUser) => {
+      if (!nextUser) return;
+      setUser(nextUser);
+      if (token) await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({ user: nextUser, token })).catch(() => {});
+    },
+    [token]
+  );
 
-  const setBalance = useCallback((next) => {
-    balanceRef.current = next;
-    setWalletBalance(next);
-  }, []);
+  const logout = useCallback(async () => {
+    await persistAuth(null, null);
+    setAccess({ ...EMPTY_ACCESS, loaded: true });
+    setWalletBalance(0);
+    setEnrolledCourses({});
+    setCartBookIds([]);
+  }, [persistAuth]);
 
-  const refreshSession = useCallback(async () => {
-    if (!token || token === 'local') return null;
-    try {
-      const data = await api('/users/validate-token', { token });
-      if (data?.user) {
-        await updateUser(data.user);
-        if (typeof data.user.walletBalance === 'number') {
-          setBalance(data.user.walletBalance);
-        }
-        return data.user;
-      }
-    } catch {
-      // offline or expired token
+  // A signed-in request came back 401: the session ended on the server.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
+
+  const refreshAccess = useCallback(async () => {
+    if (!token) {
+      setAccess({ ...EMPTY_ACCESS, loaded: true });
+      return;
     }
-    return null;
-  }, [token, updateUser, setBalance]);
+    try {
+      const data = await api('/me/entitlements', { token });
+      setAccess({
+        features: data.features || [],
+        entitlements: data.entitlements || [],
+        isOwner: Boolean(data.isOwner),
+        loaded: true,
+      });
+    } catch {
+      setAccess((prev) => ({ ...prev, loaded: true }));
+    }
+  }, [token]);
 
   const loadWallet = useCallback(async () => {
-    if (!token || token === 'local') return null;
+    if (!token) return null;
     try {
-      const data = await fetchWallet(token);
-      setBalance(Number(data.balance || 0));
-      if (Array.isArray(data.transactions)) {
-        setTransactions(
-          data.transactions.map((tx) => ({
-            id: tx.id,
-            type: tx.type,
-            label: tx.label,
-            // Backend stores some debits (e.g. pie deposits) as positive amounts — normalise by type.
-            amount: DEBIT_TYPES.has(tx.type) ? -Math.abs(Number(tx.amount) || 0) : Number(tx.amount) || 0,
-            date: tx.date ? String(tx.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
-            status: tx.status || 'completed',
-          }))
-        );
-      }
+      const data = await api('/wallet', { token });
+      setWalletBalance(Number(data.balance || 0));
       return data;
     } catch {
       return null;
     }
-  }, [token, setBalance]);
+  }, [token]);
 
+  const refreshSession = useCallback(async () => {
+    if (!token) return null;
+    try {
+      const data = await api('/users/validate-token', { token });
+      if (data?.user) {
+        await updateUser(data.user);
+        return data.user;
+      }
+    } catch {
+      // offline, or the token expired (handled by the 401 handler)
+    }
+    return null;
+  }, [token, updateUser]);
+
+  // Whenever the session changes: who am I, what can I open, wallet, phone alerts.
   useEffect(() => {
-    if (!authReady || !token || token === 'local') return;
+    if (!authReady) return;
+    setAccess((prev) => ({ ...prev, loaded: false }));
+    refreshAccess();
+    if (!token) return;
     refreshSession();
     loadWallet();
-    syncBookings();
     registerPushNotifications(token).catch(() => {});
-  }, [authReady, token, refreshSession, loadWallet, syncBookings]);
+  }, [authReady, token, refreshAccess, refreshSession, loadWallet]);
 
-  const loginWithEmail = useCallback(
-    async (email, password) => {
-      let data;
-      try {
-        data = await loginWithEmailApi(email, password);
-      } catch (error) {
-        if (isNetworkError(error)) {
-          throw new Error('Can’t reach QuickX right now. Check your connection and try again.');
-        }
-        throw error;
-      }
+  const completeSignIn = useCallback(
+    async (data) => {
       await persistAuth(data.user, data.token);
-      if (typeof data.user?.walletBalance === 'number') {
-        setBalance(data.user.walletBalance);
+      if (pendingSignIn.current) {
+        pendingSignIn.current(data.token);
+        pendingSignIn.current = null;
       }
-      await loadWallet();
-      registerPushNotifications(data.token).catch(() => {});
+      setSignInPrompt(null);
     },
-    [persistAuth, loadWallet, setBalance]
+    [persistAuth]
   );
 
+  // ── Sign-in sheet (browse first) ──
+  const requireSignIn = useCallback(
+    (reason) => {
+      if (token) return Promise.resolve(token);
+      return new Promise((resolve) => {
+        pendingSignIn.current?.(false);
+        pendingSignIn.current = resolve;
+        setSignInPrompt({ reason: reason || 'Sign in to continue.' });
+      });
+    },
+    [token]
+  );
+
+  const dismissSignIn = useCallback(() => {
+    pendingSignIn.current?.(false);
+    pendingSignIn.current = null;
+    setSignInPrompt(null);
+  }, []);
+
+  // ── Auth calls used by the sign-in screens ──
+  const loginWithEmail = useCallback(
+    async (email, password) => {
+      const data = await loginWithEmailApi(email, password);
+      await completeSignIn(data);
+    },
+    [completeSignIn]
+  );
+
+  const requestOtp = useCallback(async (phone, purpose, profile = {}) => {
+    const data = await api('/users/otp/request', { method: 'POST', body: { phone, purpose, ...profile } });
+    return { devCode: data.devCode };
+  }, []);
+
+  const verifyOtp = useCallback(
+    async (phone, code) => {
+      const data = await api('/users/otp/verify', { method: 'POST', body: { phone, code } });
+      await completeSignIn(data);
+    },
+    [completeSignIn]
+  );
+
+  const registerWithEmail = useCallback(async ({ fullName, email, phone, password, referralCode }) => {
+    const data = await api('/users/register', {
+      method: 'POST',
+      body: {
+        fullName: String(fullName || '').trim(),
+        email: String(email || '').trim().toLowerCase(),
+        phone,
+        password,
+        country: 'Ghana',
+        ...(referralCode ? { referralCode: String(referralCode).trim().toUpperCase() } : {}),
+      },
+    });
+    return { devCode: data.devCode };
+  }, []);
+
+  const verifyEmailAccount = useCallback(
+    async (email, code) => {
+      const data = await api('/users/verify-account', {
+        method: 'POST',
+        body: { email: String(email || '').trim().toLowerCase(), code },
+      });
+      await completeSignIn(data);
+    },
+    [completeSignIn]
+  );
+
+  const resendEmailOtp = useCallback(async (email) => {
+    const data = await api('/users/resend-otp', { method: 'POST', body: { email: String(email || '').trim().toLowerCase() } });
+    return { devCode: data.devCode };
+  }, []);
+
+  // ── Local lists ──
   const setAvatarUri = useCallback((uri) => {
     setAvatarUriState(uri);
     if (uri) AsyncStorage.setItem(AVATAR_KEY, uri).catch(() => {});
     else AsyncStorage.removeItem(AVATAR_KEY).catch(() => {});
   }, []);
 
-  const addTransaction = useCallback((tx) => {
-    setTransactions((prev) => [
-      { id: makeId('tx'), date: new Date().toISOString().slice(0, 10), status: 'completed', ...tx },
-      ...prev,
-    ]);
+  const toggleWishlistBook = useCallback((id) => {
+    setWishlistBooks((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
-
-  const deposit = useCallback(
-    async ({ amount, phone, network, onPending }) => {
-      if (!token || token === 'local') throw new Error('Sign in to top up your wallet.');
-      const result = await topUpWallet({ token, amount, phone, network, onPending });
-      if (typeof result.balance === 'number') {
-        setBalance(result.balance);
-      }
-      await loadWallet();
-      return true;
-    },
-    [token, setBalance, loadWallet]
-  );
-
-  const withdraw = useCallback(
-    async ({ amount, phone, network }) => {
-      if (!token || token === 'local') throw new Error('Sign in to withdraw.');
-      if (balanceRef.current < amount) throw new Error('Insufficient wallet balance.');
-      const result = await withdrawWallet({ token, amount, phone, network });
-      if (typeof result.balance === 'number') {
-        setBalance(result.balance);
-      }
-      await loadWallet();
-      return true;
-    },
-    [token, setBalance, loadWallet]
-  );
-
-  const transfer = useCallback(
-    (amount, note) => {
-      if (balanceRef.current < amount) return false;
-      setBalance(balanceRef.current - amount);
-      addTransaction({ type: 'transfer', label: note || 'Transfer', amount: -amount });
-      return true;
-    },
-    [addTransaction, setBalance]
-  );
-
-  const pay = useCallback(
-    async (amount, label) => {
-      if (amount <= 0) {
-        addTransaction({ type: 'payment', label, amount: 0 });
-        return true;
-      }
-      if (token && token !== 'local') {
-        try {
-          const result = await payFromWallet({ token, amount, label });
-          if (typeof result.balance === 'number') {
-            setBalance(result.balance);
-          }
-          await loadWallet();
-          return true;
-        } catch {
-          return false;
-        }
-      }
-      if (balanceRef.current < amount) return false;
-      setBalance(balanceRef.current - amount);
-      addTransaction({ type: 'payment', label, amount: -amount });
-      return true;
-    },
-    [addTransaction, setBalance, token, loadWallet]
-  );
-
-  const toggleSavedCourse = useCallback((courseId) => {
-    setSavedCourses((prev) =>
-      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
-    );
+  const toggleCartBook = useCallback((id) => {
+    setCartBookIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
-
-  const toggleWishlistBook = useCallback((bookId) => {
-    setWishlistBooks((prev) => (prev.includes(bookId) ? prev.filter((id) => id !== bookId) : [...prev, bookId]));
-  }, []);
-
-  const toggleFollowTutor = useCallback((tutorId) => {
-    setFollowedTutors((prev) => (prev.includes(tutorId) ? prev.filter((id) => id !== tutorId) : [...prev, tutorId]));
-  }, []);
-
-  const enrollCourse = useCallback((courseId, price, title) => {
-    const paid = pay(price, `Course: ${title}`);
-    if (!paid) return false;
-    setEnrolledCourses((prev) => ({
-      ...prev,
-      [courseId]: prev[courseId] || { progress: {}, lastLessonId: null },
-    }));
-    return true;
-  }, [pay]);
+  const clearCart = useCallback(() => setCartBookIds([]), []);
 
   const grantCourseAccess = useCallback((courseId) => {
-    setEnrolledCourses((prev) => ({
-      ...prev,
-      [courseId]: prev[courseId] || { progress: {}, lastLessonId: null },
-    }));
+    setEnrolledCourses((prev) => (prev[courseId] ? prev : { ...prev, [courseId]: { progress: {}, lastLessonId: null } }));
   }, []);
-
   const markLessonComplete = useCallback((courseId, lessonId) => {
     setEnrolledCourses((prev) => {
       const current = prev[courseId] || { progress: {}, lastLessonId: null };
-      return {
-        ...prev,
-        [courseId]: {
-          ...current,
-          progress: { ...current.progress, [lessonId]: true },
-          lastLessonId: lessonId,
-        },
-      };
+      return { ...prev, [courseId]: { ...current, progress: { ...current.progress, [lessonId]: true }, lastLessonId: lessonId } };
     });
   }, []);
-
   const setLastLesson = useCallback((courseId, lessonId) => {
     setEnrolledCourses((prev) => {
       const current = prev[courseId] || { progress: {}, lastLessonId: null };
-      return {
-        ...prev,
-        [courseId]: { ...current, lastLessonId: lessonId },
-      };
+      return { ...prev, [courseId]: { ...current, lastLessonId: lessonId } };
     });
   }, []);
 
-  const createBooking = useCallback(
-    async (booking) => {
-      if (!token || token === 'local') return null;
-      try {
-        const result = await createBookingApi(token, booking);
-        if (typeof result.walletBalance === 'number') {
-          setBalance(result.walletBalance);
-        }
-        const full = result.booking;
-        setBookings((prev) => [full, ...prev]);
-        await loadWallet();
-        return full;
-      } catch {
-        return null;
-      }
-    },
-    [token, setBalance, loadWallet]
-  );
-
-  const cancelBooking = useCallback((bookingId) => {
-    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b)));
-  }, []);
-
-  const cancelBookingRemote = useCallback(
-    async (bookingId) => {
-      if (!token || token === 'local') {
-        cancelBooking(bookingId);
-        return;
-      }
-      try {
-        await cancelBookingApi(token, bookingId);
-        cancelBooking(bookingId);
-      } catch {
-        cancelBooking(bookingId);
-      }
-    },
-    [token, cancelBooking]
-  );
-
-  const toggleCartBook = useCallback((bookId) => {
-    setCartBookIds((prev) =>
-      prev.includes(bookId) ? prev.filter((id) => id !== bookId) : [...prev, bookId]
-    );
-  }, []);
-
-  const clearCart = useCallback(() => setCartBookIds([]), []);
-
-  const completeBooking = useCallback((bookingId) => {
-    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'completed' } : b)));
-  }, []);
-
-  const buyBook = useCallback(
-    (book) => {
-      const paid = pay(book.price, `Book: ${book.title}`);
-      if (!paid) return false;
-      setPurchasedBooks((prev) => (prev.includes(book.id) ? prev : [...prev, book.id]));
-      if (book.type === 'physical' || book.type === 'bundle') {
-        setPhysicalOrders((prev) => [
-          {
-            id: makeId('ord'),
-            bookId: book.id,
-            title: book.title,
-            status: 'processing',
-            date: new Date().toISOString().slice(0, 10),
-          },
-          ...prev,
-        ]);
-      }
-      return true;
-    },
-    [pay]
-  );
-
-  const withNetworkMessage = (error) => {
-    if (isNetworkError(error)) {
-      return new Error('Can’t reach QuickX right now. Check your connection and try again.');
-    }
-    return error;
-  };
-
-  const completeSignIn = useCallback(
-    async (data) => {
-      await persistAuth(data.user, data.token);
-      if (typeof data.user?.walletBalance === 'number') {
-        setBalance(data.user.walletBalance);
-      }
-      await loadWallet();
-      registerPushNotifications(data.token).catch(() => {});
-    },
-    [persistAuth, loadWallet, setBalance]
-  );
-
-  const requestOtp = useCallback(async (phone, purpose, profile = {}) => {
-    try {
-      const data = await api('/users/otp/request', {
-        method: 'POST',
-        body: { phone, purpose, ...profile },
-      });
-      return { devCode: data.devCode };
-    } catch (error) {
-      throw withNetworkMessage(error);
-    }
-  }, []);
-
-  const verifyOtp = useCallback(
-    async (phone, code) => {
-      try {
-        const data = await api('/users/otp/verify', {
-          method: 'POST',
-          body: { phone, code },
-        });
-        await completeSignIn(data);
-      } catch (error) {
-        throw withNetworkMessage(error);
-      }
-    },
-    [completeSignIn]
-  );
-
-  /** Email + password registration (same as the website). Sends an SMS code to verify the account. */
-  const registerWithEmail = useCallback(async ({ fullName, email, phone, password, referralCode }) => {
-    try {
-      const data = await api('/users/register', {
-        method: 'POST',
-        body: {
-          fullName: String(fullName || '').trim(),
-          email: String(email || '').trim().toLowerCase(),
-          phone,
-          password,
-          country: 'Ghana',
-          ...(referralCode ? { referralCode: String(referralCode).trim().toUpperCase() } : {}),
-        },
-      });
-      return { devCode: data.devCode };
-    } catch (error) {
-      throw withNetworkMessage(error);
-    }
-  }, []);
-
-  const verifyEmailAccount = useCallback(
-    async (email, code) => {
-      try {
-        const data = await api('/users/verify-account', {
-          method: 'POST',
-          body: { email: String(email || '').trim().toLowerCase(), code },
-        });
-        await completeSignIn(data);
-      } catch (error) {
-        throw withNetworkMessage(error);
-      }
-    },
-    [completeSignIn]
-  );
-
-  const resendEmailOtp = useCallback(async (email) => {
-    try {
-      const data = await api('/users/resend-otp', {
-        method: 'POST',
-        body: { email: String(email || '').trim().toLowerCase() },
-      });
-      return { devCode: data.devCode };
-    } catch (error) {
-      throw withNetworkMessage(error);
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    await persistAuth(null, null);
-    // Don't leak the previous account's money or history into the next session.
-    setBalance(0);
-    setTransactions([]);
-    setBookings([]);
-    setEnrolledCourses({});
-    setPurchasedBooks([]);
-    setPhysicalOrders([]);
-  }, [persistAuth, setBalance]);
-
-  const value = useMemo(
-    () => ({
-      walletBalance,
-      currency: initialWallet.currency,
-      transactions,
-      savedCourses,
-      wishlistBooks,
-      followedTutors,
-      enrolledCourses,
-      bookings,
-      cartBookIds,
-      purchasedBooks,
-      physicalOrders,
-      deposit,
-      withdraw,
-      transfer,
-      pay,
-      toggleSavedCourse,
-      toggleWishlistBook,
-      toggleFollowTutor,
-      enrollCourse,
-      grantCourseAccess,
-      markLessonComplete,
-      setLastLesson,
-      createBooking,
-      cancelBooking: cancelBookingRemote,
-      completeBooking,
-      buyBook,
-      toggleCartBook,
-      clearCart,
-      syncBookings,
-      avatarUri,
-      setAvatarUri,
+  const value = useMemo(() => {
+    const isSignedIn = Boolean(token && user);
+    return {
       user,
       token,
       authReady,
+      isSignedIn,
+      // Access
+      features: access.features,
+      entitlements: access.entitlements,
+      isOwner: access.isOwner,
+      accessLoaded: access.loaded,
+      has: (feature) => access.features.includes(feature),
+      expiryOf: (feature) => access.entitlements.find((e) => e.feature === feature)?.endsAt || null,
+      refreshAccess,
+      // Session
+      requireSignIn,
+      signInPrompt,
+      dismissSignIn,
+      loginWithEmail,
       requestOtp,
       verifyOtp,
       registerWithEmail,
@@ -574,66 +316,62 @@ export function AppStateProvider({ children }) {
       logout,
       updateUser,
       refreshSession,
+      // Money
+      walletBalance,
       loadWallet,
-      loginWithEmail,
-      isEnrolled: (id) => Boolean(enrolledCourses[id]),
-      isSavedCourse: (id) => savedCourses.includes(id),
+      // On this phone
+      avatarUri,
+      setAvatarUri,
+      wishlistBooks,
+      toggleWishlistBook,
       isWishlisted: (id) => wishlistBooks.includes(id),
-      isFollowing: (id) => followedTutors.includes(id),
-      isBookOwned: (id) => purchasedBooks.includes(id),
-    }),
-    [
-      walletBalance,
-      transactions,
-      savedCourses,
-      wishlistBooks,
-      followedTutors,
-      enrolledCourses,
-      bookings,
       cartBookIds,
-      purchasedBooks,
-      physicalOrders,
-      deposit,
-      withdraw,
-      transfer,
-      pay,
-      toggleSavedCourse,
-      toggleWishlistBook,
-      toggleFollowTutor,
-      enrollCourse,
+      toggleCartBook,
+      clearCart,
+      enrolledCourses,
       grantCourseAccess,
       markLessonComplete,
       setLastLesson,
-      createBooking,
-      cancelBookingRemote,
-      completeBooking,
-      buyBook,
-      toggleCartBook,
-      clearCart,
-      syncBookings,
-      avatarUri,
-      setAvatarUri,
-      user,
-      token,
-      authReady,
-      requestOtp,
-      verifyOtp,
-      registerWithEmail,
-      verifyEmailAccount,
-      resendEmailOtp,
-      logout,
-      updateUser,
-      refreshSession,
-      loadWallet,
-      loginWithEmail,
-    ]
-  );
+      isEnrolled: (id) => Boolean(enrolledCourses[id]),
+    };
+  }, [
+    user,
+    token,
+    authReady,
+    access,
+    refreshAccess,
+    requireSignIn,
+    signInPrompt,
+    dismissSignIn,
+    loginWithEmail,
+    requestOtp,
+    verifyOtp,
+    registerWithEmail,
+    verifyEmailAccount,
+    resendEmailOtp,
+    logout,
+    updateUser,
+    refreshSession,
+    walletBalance,
+    loadWallet,
+    avatarUri,
+    setAvatarUri,
+    wishlistBooks,
+    toggleWishlistBook,
+    cartBookIds,
+    toggleCartBook,
+    clearCart,
+    enrolledCourses,
+    grantCourseAccess,
+    markLessonComplete,
+    setLastLesson,
+  ]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
 export function useAppState() {
   const ctx = useContext(AppStateContext);
-  if (!ctx) throw new Error('useAppState must be used within AppStateProvider');
+  if (!ctx) throw new Error('useAppState must be used inside AppStateProvider');
   return ctx;
 }

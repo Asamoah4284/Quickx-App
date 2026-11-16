@@ -155,7 +155,7 @@ export function EmailSignup({ top }) {
     <AuthScreen
       title="Create account"
       top={top}
-      subtitle="Sign up with email and a password — the same account works on the QuickX website.">
+      subtitle="Sign up with email and a password. The same account works on the QuickX website.">
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.label}>Full name</Text>
@@ -255,9 +255,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  ruleOk: { backgroundColor: '#EAF8EF', borderColor: '#BDE8CB' },
+  ruleOk: { backgroundColor: 'rgba(47,208,140,0.12)', borderColor: 'rgba(47,208,140,0.3)' },
   ruleText: { fontSize: 11, fontWeight: '600', color: colors.muted },
-  ruleTextOk: { color: '#13803C' },
+  ruleTextOk: { color: '#2fd08c' },
   footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
   footerText: { color: colors.muted, fontSize: 14 },
   link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
@@ -265,11 +265,11 @@ const styles = StyleSheet.create({
   hintCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7E0',
+    backgroundColor: 'rgba(245,184,74,0.12)',
     borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
-  hintText: { flex: 1, marginLeft: 10, color: colors.navy, fontWeight: '600', fontSize: 13 },
+  hintText: { flex: 1, marginLeft: 10, color: colors.text, fontWeight: '600', fontSize: 13 },
   resendRow: { alignItems: 'center', marginTop: spacing.xl },
 });

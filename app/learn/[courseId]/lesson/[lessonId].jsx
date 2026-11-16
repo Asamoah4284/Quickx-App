@@ -177,7 +177,7 @@ export default function LessonScreen() {
       }
     }
     if (lesson.type === 'quiz') {
-      Alert.alert('Quiz complete', 'Nice work — keep going!');
+      Alert.alert('Quiz complete', 'Nice work. Keep going!');
     }
   };
 
@@ -235,7 +235,7 @@ export default function LessonScreen() {
                 {lesson.isLocked
                   ? 'This lesson is locked. Buy the course to watch.'
                   : lesson.type === 'quiz'
-                    ? 'Quiz lesson — mark complete when finished.'
+                    ? 'Quiz lesson. Mark it complete when you finish.'
                     : lesson.textContent
                       ? 'Reading lesson'
                       : 'No video available for this lesson yet.'}
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   offlineTitle: { fontWeight: '700', color: colors.text },
   offlineMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: '#E6ECF5', marginTop: 6, overflow: 'hidden' },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 6, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
-  navChipText: { color: colors.navy, fontWeight: '700', fontSize: 13 },
+  navChipText: { color: colors.text, fontWeight: '700', fontSize: 13 },
 });

@@ -1,174 +1,140 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { View } from 'react-native';
 
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { Screen } from '@/components/ui/Screen';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { Button, Card, Divider, Icon, IconBox, Row, Txt } from '@/components/ui/kit';
+import { Page } from '@/components/ui/Page';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import {
-  fetchNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-} from '@/utils/notifications';
+import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/utils/notifications';
+import { appRouteFor } from '@/utils/pushNotifications';
+
+const ICONS = {
+  signal: 'activity',
+  withdrawal: 'credit-card',
+  direct_message: 'message-circle',
+  question_answered: 'help-circle',
+  question_asked: 'help-circle',
+  live_reminder: 'video',
+  resource_upload: 'folder',
+  announcement: 'volume-2',
+  new_course: 'play-circle',
+  comment_reply: 'message-square',
+  mention: 'at-sign',
+  post_like: 'heart',
+};
 
 export default function NotificationsScreen() {
-  const { token } = useAppState();
-  const [items, setItems] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { token, isSignedIn, requireSignIn } = useAppState();
+  const [items, setItems] = useState(null);
+  const [unread, setUnread] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token || token === 'local') {
-      setItems([]);
-      setUnreadCount(0);
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+    if (!token) return;
     try {
       const data = await fetchNotifications(token);
       setItems(data.notifications);
-      setUnreadCount(data.unreadCount);
+      setUnread(data.unreadCount);
     } catch {
-      setItems([]);
-      setUnreadCount(0);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setItems((prev) => prev || []);
     }
   }, [token]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    load();
-  };
-
-  const onMarkRead = async (id) => {
-    if (!token || token === 'local') return;
-    try {
-      await markNotificationRead(token, id);
-      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-      setUnreadCount((count) => Math.max(0, count - 1));
-    } catch {
-      // ignore
+  const open = (n) => {
+    if (!n.read) {
+      markNotificationRead(token, n.id).catch(() => {});
+      setItems((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      setUnread((c) => Math.max(0, c - 1));
     }
+    if (n.webPath) router.push(appRouteFor(n.webPath));
   };
 
-  const onMarkAllRead = async () => {
-    if (!token || token === 'local') return;
+  const readAll = async () => {
     try {
       await markAllNotificationsRead(token);
-      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
+      setItems((list) => list.map((x) => ({ ...x, read: true })));
+      setUnread(0);
     } catch {
-      // ignore
+      // Try again next time.
     }
   };
 
-  if (loading) {
+  if (!isSignedIn) {
     return (
-      <Screen scroll={false} contentStyle={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-      </Screen>
-    );
-  }
-
-  if (!token || token === 'local') {
-    return (
-      <Screen>
-        <Text style={[typography.h2, { marginBottom: spacing.lg }]}>Notifications</Text>
-        <EmptyState
-          icon="bell-o"
-          title="Sign in to see notifications"
-          subtitle="Community updates, course alerts, and reminders appear here once you are signed in."
-        />
-      </Screen>
+      <Page>
+        <EmptyState icon="bell" title="Sign in to see your notifications" subtitle="Signal alerts, replies and payouts show up here.">
+          <Button label="Sign in" onPress={() => requireSignIn()} />
+        </EmptyState>
+      </Page>
     );
   }
 
   return (
-    <Screen
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
-      <View style={styles.header}>
-        <View>
-          <Text style={typography.h2}>Notifications</Text>
-          {unreadCount ? (
-            <Text style={styles.unreadMeta}>{unreadCount} unread</Text>
-          ) : (
-            <Text style={styles.unreadMeta}>All caught up</Text>
-          )}
-        </View>
-        {unreadCount ? (
-          <PrimaryButton label="Mark all read" variant="secondary" onPress={onMarkAllRead} />
+    <Page
+      refreshing={refreshing}
+      onRefresh={async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+      }}>
+      <View style={{ gap: 14 }}>
+        {unread ? (
+          <Row justify="space-between">
+            <Txt size={13.5} color={t.fgMuted}>
+              {unread} unread
+            </Txt>
+            <Button variant="ghost" size="sm" icon="check" label="Mark all as read" onPress={readAll} />
+          </Row>
+        ) : null}
+        {items === null ? (
+          <View style={{ gap: 10 }}>
+            <Skeleton height={72} radius={16} />
+            <Skeleton height={72} radius={16} />
+            <Skeleton height={72} radius={16} />
+          </View>
+        ) : null}
+        {items && !items.length ? <EmptyState icon="bell-o" title="You are all caught up" subtitle="New signals, replies and payouts will show up here." /> : null}
+        {items?.length ? (
+          <Card padded={false}>
+            {items.map((n, i) => (
+              <View key={n.id}>
+                {i ? <Divider /> : null}
+                <PressableScale haptic="select" scaleTo={0.99} onPress={() => open(n)} style={{ padding: 14 }}>
+                  <Row gap={12} align="flex-start">
+                    <IconBox name={ICONS[n.type] || 'bell'} size={38} iconSize={17} tone={n.read ? 'neutral' : 'brand'} />
+                    <View style={{ flex: 1 }}>
+                      <Row gap={8} justify="space-between" align="flex-start">
+                        <Txt size={14.5} weight={n.read ? 'medium' : 'bold'} style={{ flex: 1 }}>
+                          {n.title}
+                        </Txt>
+                        <Txt size={11.5} color={t.fgSubtle}>
+                          {n.time}
+                        </Txt>
+                      </Row>
+                      {n.body ? (
+                        <Txt size={13.5} color={n.read ? t.fgSubtle : t.fgMuted} style={{ marginTop: 2, lineHeight: 19 }} numberOfLines={3}>
+                          {n.body}
+                        </Txt>
+                      ) : null}
+                    </View>
+                    {!n.read ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.brand400, marginTop: 6 }} /> : n.webPath ? <Icon name="chevron-right" size={16} color={t.fgSubtle} style={{ marginTop: 2 }} /> : null}
+                  </Row>
+                </PressableScale>
+              </View>
+            ))}
+          </Card>
         ) : null}
       </View>
-
-      {!items.length ? (
-        <EmptyState
-          icon="bell-o"
-          title="No notifications yet"
-          subtitle="When tutors post, reply, or go live, you will see alerts here."
-        />
-      ) : (
-        items.map((n) => (
-          <Pressable
-            key={n.id}
-            onPress={() => !n.read && onMarkRead(n.id)}
-            style={[styles.card, !n.read && styles.cardUnread]}>
-            <Text style={styles.title}>{n.title}</Text>
-            {n.body ? <Text style={typography.caption}>{n.body}</Text> : null}
-            <Text style={styles.time}>{n.time}</Text>
-          </Pressable>
-        ))
-      )}
-    </Screen>
+    </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  unreadMeta: {
-    marginTop: 4,
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardUnread: {
-    borderColor: '#C7D9FF',
-    backgroundColor: '#F6F9FF',
-  },
-  title: { fontWeight: '700', color: colors.text, marginBottom: 4 },
-  time: { marginTop: spacing.sm, color: colors.primary, fontWeight: '600', fontSize: 12 },
-});

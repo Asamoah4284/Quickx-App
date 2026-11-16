@@ -8,7 +8,7 @@ import { colors, spacing } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { getOfflineLesson } from '@/utils/offlineLessons';
 
-/** Plays a downloaded lesson straight from device storage — works with no connection at all. */
+/** Plays a downloaded lesson straight from device storage, so it works with no connection at all. */
 export default function OfflinePlayerScreen() {
   const { courseId, lessonId } = useLocalSearchParams();
   const router = useRouter();

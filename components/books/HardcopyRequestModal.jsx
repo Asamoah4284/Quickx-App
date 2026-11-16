@@ -51,7 +51,7 @@ export function HardcopyRequestModal({ book, visible, onClose, user }) {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text style={typography.h3}>Request hardcopy</Text>
-          <Text style={styles.hint}>Free delivery — we&apos;ll confirm on WhatsApp.</Text>
+          <Text style={styles.hint}>Free delivery. We&apos;ll confirm on WhatsApp.</Text>
           <Text style={styles.bookTitle}>{book.title}</Text>
           <Text style={styles.price}>{formatPriceCedi(hardcopyAmount)}</Text>
           <TextInput

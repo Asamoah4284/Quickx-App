@@ -118,8 +118,8 @@ export default function DownloadsScreen() {
             </View>
             <Text style={styles.emptyTitle}>No downloads yet</Text>
             <Text style={styles.emptySub}>Open a lesson in a course you own and tap “Download for offline” to watch it anywhere.</Text>
-            <Pressable style={styles.cta} onPress={() => router.push('/my-courses')}>
-              <Text style={styles.ctaText}>My courses</Text>
+            <Pressable style={styles.cta} onPress={() => router.push('/courses')}>
+              <Text style={styles.ctaText}>Browse courses</Text>
             </Pressable>
           </View>
         ) : null
