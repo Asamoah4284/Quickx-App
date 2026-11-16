@@ -34,5 +34,7 @@ export const FEATURE_LIST = Object.values(FEATURES);
 
 export const LINKS = {
   website: 'https://quickxlearn.com',
+  privacy: 'https://quickxlearn.com/privacy',
+  deleteAccount: 'https://quickxlearn.com/delete-account',
   whatsappMaxwell: `https://wa.me/233559037872?text=${encodeURIComponent('Hello Maxwell, I am a mentorship member on QuickX.')}`,
 };

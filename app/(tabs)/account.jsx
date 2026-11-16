@@ -128,6 +128,7 @@ function Help() {
           { icon: 'message-circle', label: 'WhatsApp Maxwell', onPress: () => Linking.openURL(LINKS.whatsappMaxwell).catch(() => {}) },
           { icon: 'send', label: 'Telegram channel', onPress: () => Linking.openURL('https://t.me/quickxtrading').catch(() => {}) },
           { icon: 'globe', label: 'quickxlearn.com', onPress: () => Linking.openURL(LINKS.website).catch(() => {}) },
+          { icon: 'shield', label: 'Privacy policy', onPress: () => Linking.openURL(LINKS.privacy).catch(() => {}) },
         ]}
       />
       <Txt size={11.5} color={t.fgSubtle} center style={{ marginTop: 16 }}>
@@ -243,6 +244,8 @@ export default function AccountScreen() {
         <Help />
 
         <Menu items={[{ icon: 'log-out', label: 'Sign out', danger: true, onPress: signOut }]} />
+
+        <Button variant="ghost" size="sm" icon="trash-2" label="Delete account" onPress={() => router.push('/delete-account')} style={{ alignSelf: 'center' }} />
       </View>
     </Page>
   );

@@ -24,6 +24,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS"
       ]
@@ -66,6 +67,13 @@
     "experiments": {
       "typedRoutes": false
     },
-    "backgroundColor": "#05080f"
+    "backgroundColor": "#05080f",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "eb796df4-88b8-42a2-ad4b-10c4e307b416"
+      }
+    },
+    "owner": "clemss"
   }
 }

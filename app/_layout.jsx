@@ -105,6 +105,7 @@ function RootNav() {
         <Stack.Screen name="events/my-tickets" options={header('My tickets')} />
         <Stack.Screen name="notifications" options={header('Notifications')} />
         <Stack.Screen name="settings/index" options={header('Profile and settings')} />
+        <Stack.Screen name="delete-account" options={header('Delete account')} />
         <Stack.Screen name="checkout/[key]" options={{ presentation: 'card' }} />
         <Stack.Screen name="owner/signal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="payment-done" options={{ animation: 'none' }} />

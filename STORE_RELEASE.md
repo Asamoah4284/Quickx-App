@@ -14,10 +14,16 @@ Both stores will reject the app without these. Do them first.
 | # | What | Why |
 |---|---|---|
 | 1 | **Deploy the backend** with the latest code (`QuickX/Backend`, branch `revamp`) | App payments and push notifications use new endpoints |
-| 2 | **Privacy policy page** on the website, for example `https://quickxlearn.com/privacy` | Both stores require a public link |
-| 3 | **Account deletion** inside the app (Account tab) plus a web page that explains how to delete | Apple and Google both require it when people can create an account in the app. Not built yet |
+| 2 | **Privacy policy**: built at `https://quickxlearn.com/privacy`. Deploy the website, read it once, and make sure the support email works (see below) | Both stores require a public link |
+| 3 | **Account deletion**: built. In the app: Account tab, then *Delete account*. On the web: `https://quickxlearn.com/delete-account` (give this link to Google Play) | Apple and Google both require it |
 | 4 | **Decide how iPhone users pay for digital things** (see section 9) | Apple's rules on selling digital content |
 | 5 | **A review account** with email and password, with All-Access turned on (see section 8) | The reviewers cannot receive the SMS code |
+
+**Support email:** the privacy and deletion pages tell people to write to `support@quickxlearn.com`.
+Create that mailbox, or change the address in `QuickX/Frontend/my-app/src/lib/legal.js` (the
+WhatsApp number and the "last updated" date are there too). Use the same address in both stores.
+Have someone who knows Ghana's Data Protection Act read the privacy policy before launch; it is a
+plain, honest starting point, not legal advice.
 
 ---
 
@@ -318,7 +324,7 @@ top of each with any image editor.
 
 Card and Mobile Money payments are handled by **Paystack**; the app never sees card numbers.
 There is **no tracking** and **no advertising**. Data is sent over an encrypted connection (HTTPS).
-People can ask for their account to be deleted (section 0).
+People can delete their account themselves, in the app or at quickxlearn.com/delete-account.
 
 ---
 
@@ -337,7 +343,7 @@ On a real phone, with the **preview** build pointing at the live server:
 - [ ] Buy an event ticket and an e-book
 - [ ] Watch a lesson, download it, and watch it again in flight mode
 - [ ] Request a wallet withdrawal
-- [ ] Delete an account (once that is built)
+- [ ] Delete a test account (Account tab, then Delete account) and check you cannot sign back in
 
 ---
 
