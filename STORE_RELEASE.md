@@ -62,7 +62,7 @@ All of these are in `app.json`, unless it says otherwise.
 | Notification icon | `assets/images/notification-icon.png` | White logo | Android needs white on transparent |
 | Link scheme | `expo.scheme` | `quickxlearn` | Paystack returns to `quickxlearn://payment-done`. If you change it, change `Frontend/my-app/src/features/billing/PaymentDone.jsx` and `utils/paystack.js` too |
 | iPad support | `expo.ios.supportsTablet` | `false` | Off, so Apple does not ask for iPad screenshots |
-| Server address | `eas.json`, `EXPO_PUBLIC_API_URL` | `https://quickx-qeew.onrender.com/api` | Change it here if the API moves to your own domain, then rebuild |
+| Server address | `eas.json`, `EXPO_PUBLIC_API_URL` | `https://quickx.tabitacum.cloud/api` | Change it here if the API moves to your own domain, then rebuild |
 | Permission wording | `expo-image-picker` plugin in `app.json` | Photos and camera text | Apple shows these sentences to users |
 
 The icons are made from the logo by a script. If the logo changes, ask for the icons to be made again

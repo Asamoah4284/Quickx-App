@@ -14,7 +14,7 @@ npx expo start
 The app finds a backend running on your computer at port 5000. To use another server instead:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://quickx-qeew.onrender.com/api npx expo start
+EXPO_PUBLIC_API_URL=https://quickx.tabitacum.cloud/api npx expo start
 ```
 
 Push notifications and Paystack's return to the app need a development build, not Expo Go:

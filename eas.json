@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://quickx-qeew.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://quickx.tabitacum.cloud/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://quickx-qeew.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://quickx.tabitacum.cloud/api"
       }
     }
   },
