@@ -154,5 +154,5 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  boot: { ...StyleSheet.absoluteFillObject, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
+  boot: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
 });

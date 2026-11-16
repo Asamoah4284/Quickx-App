@@ -72,7 +72,7 @@ export function AuthScreen({ title, subtitle, onBack, backLabel = 'Back', top, c
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: t.bg },
-  glow: { ...StyleSheet.absoluteFillObject, height: 420 },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
   scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, marginBottom: 28 },
   round: {

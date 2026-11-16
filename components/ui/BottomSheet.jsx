@@ -45,7 +45,7 @@ export function BottomSheet({ visible, onClose, title, subtitle, children }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.overlay },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
   sheet: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 28,
