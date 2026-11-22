@@ -71,7 +71,7 @@ export default function NotificationsScreen() {
 
   if (!isSignedIn) {
     return (
-      <Page>
+      <Page back title="Notifications">
         <EmptyState icon="bell" title="Sign in to see your notifications" subtitle="Signal alerts, replies and payouts show up here.">
           <Button label="Sign in" onPress={() => requireSignIn()} />
         </EmptyState>
@@ -81,6 +81,8 @@ export default function NotificationsScreen() {
 
   return (
     <Page
+      back
+      title="Notifications"
       refreshing={refreshing}
       onRefresh={async () => {
         setRefreshing(true);

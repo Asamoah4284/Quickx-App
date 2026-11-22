@@ -30,7 +30,7 @@ export default function DeleteAccountScreen() {
 
   if (done) {
     return (
-      <Page>
+      <Page back title="Delete account">
         <Card tone="up" style={{ alignItems: 'center', paddingVertical: 28 }}>
           <Icon name="check-circle" size={32} color={t.up} />
           <Txt size={18} weight="bold" center style={{ marginTop: 12 }}>
@@ -66,7 +66,7 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <Page keyboard>
+    <Page keyboard back title="Delete account">
       <View style={{ gap: 18 }}>
         <Txt size={15} color={t.fgMuted} style={{ lineHeight: 22 }}>
           Deleting your account is permanent. You lose access to everything you bought, and it cannot be undone.

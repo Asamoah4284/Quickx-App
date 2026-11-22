@@ -1,10 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { LessonVideoPlayer } from '@/components/learn/LessonVideoPlayer';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { colors, spacing } from '@/constants/theme';
+import { Badge, Button, Loading, Txt } from '@/components/ui/kit';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Page } from '@/components/ui/Page';
+import { layout, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { getOfflineLesson } from '@/utils/offlineLessons';
 
@@ -21,49 +23,44 @@ export default function OfflinePlayerScreen() {
 
   if (entry === undefined) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.white} />
-      </View>
+      <Page back>
+        <Loading label="Opening your download" />
+      </Page>
     );
   }
 
   if (!entry) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.missing}>This download has expired or was removed.</Text>
-        <PrimaryButton label="Back to downloads" variant="secondary" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
-      </View>
+      <Page back title="Download not found">
+        <EmptyState
+          icon="download"
+          title="This download has expired or was removed"
+          subtitle="Download the lesson again while you have internet.">
+          <Button label="Back to downloads" variant="secondary" onPress={() => router.back()} />
+        </EmptyState>
+      </Page>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <LessonVideoPlayer uri={entry.uri} title={entry.lessonTitle} subtitle={entry.courseTitle} />
-      <View style={styles.body}>
-        <Text style={styles.title}>{entry.lessonTitle}</Text>
-        <Text style={styles.sub}>{entry.courseTitle} · playing offline</Text>
-        <PrimaryButton
-          label="Open course"
-          variant="secondary"
-          onPress={() => router.push(`/learn/${entry.courseId}`)}
-          style={{ marginTop: spacing.xl }}
-        />
+    <Page back>
+      <LessonVideoPlayer uri={entry.uri} />
+      <View style={{ marginTop: layout.section, gap: 8 }}>
+        <Badge label="Playing offline" tone="up" icon="wifi-off" style={{ alignSelf: 'flex-start' }} />
+        <Txt size={22} weight="bold" style={{ letterSpacing: -0.4, lineHeight: 28 }}>
+          {entry.lessonTitle}
+        </Txt>
+        <Txt size={14} color={t.fgMuted}>
+          {entry.courseTitle}
+        </Txt>
       </View>
-    </View>
+      <Button
+        label="Open course"
+        variant="secondary"
+        iconRight="arrow-right"
+        onPress={() => router.push(`/learn/${entry.courseId}`)}
+        style={{ marginTop: layout.section }}
+      />
+    </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#050B18' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050B18', padding: spacing.xl },
-  missing: { color: colors.white, fontWeight: '700', textAlign: 'center' },
-  body: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: spacing.lg,
-  },
-  title: { fontSize: 22, fontWeight: '800', color: colors.text },
-  sub: { color: colors.muted, marginTop: 4 },
-});

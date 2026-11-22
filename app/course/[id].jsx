@@ -17,6 +17,7 @@ import { useAppState } from '@/context/AppState';
 import { useApi } from '@/hooks/useApi';
 import { money } from '@/utils/currency';
 import { durationLabel } from '@/utils/format';
+import { themed } from '@/utils/themedStyles';
 
 /** Modules → sections → lessons, flattened to sections with their lessons. */
 function toSections(course) {
@@ -218,23 +219,29 @@ export default function CourseDetail() {
       <Modal visible={Boolean(playing)} animationType="fade" onRequestClose={() => setPlaying(null)} supportedOrientations={['portrait', 'landscape']}>
         <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
           <Row justify="space-between" style={{ padding: 14 }}>
-            <Txt size={15} weight="semibold" style={{ flex: 1 }} numberOfLines={1}>
+            <Txt size={15} weight="semibold" color="#ffffff" style={{ flex: 1 }} numberOfLines={1}>
               {playing?.title}
             </Txt>
             <Pressable onPress={() => setPlaying(null)} hitSlop={12} accessibilityLabel="Close preview">
-              <Icon name="x" size={22} color={t.fg} />
+              <Icon name="x" size={22} color="#ffffff" />
             </Pressable>
           </Row>
-          {playing ? <LessonVideoPlayer uri={assetUrl(playing.videoUrl)} title={playing.title} subtitle="Free preview" /> : null}
+          {playing ? (
+            <View style={{ paddingHorizontal: 12 }}>
+              <LessonVideoPlayer uri={assetUrl(playing.videoUrl)} />
+            </View>
+          ) : null}
         </SafeAreaView>
       </Modal>
     </>
   );
 }
 
-const styles = StyleSheet.create({
-  cover: { aspectRatio: 16 / 9, borderRadius: 18, overflow: 'hidden', backgroundColor: t.ink700, borderWidth: 1, borderColor: t.line },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 15 },
-  lesson: { paddingHorizontal: 16, paddingVertical: 11 },
-  preview: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: t.brandSoft },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    cover: { aspectRatio: 16 / 9, borderRadius: 18, overflow: 'hidden', backgroundColor: t.ink700, borderWidth: 1, borderColor: t.line },
+    sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 15 },
+    lesson: { paddingHorizontal: 16, paddingVertical: 11 },
+    preview: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: t.brandSoft },
+  })
+);

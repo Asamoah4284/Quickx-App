@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert as NativeAlert, Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { Screen } from '@/components/ui/Screen';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Button, Card, Icon, Loading, Row, Txt } from '@/components/ui/kit';
+import { Page } from '@/components/ui/Page';
+import { layout, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { fetchBookContent } from '@/utils/catalog';
 import { openExternalUrl } from '@/utils/openUrl';
@@ -39,85 +40,76 @@ export default function BookReaderScreen() {
 
   if (!token || token === 'local') {
     return (
-      <Screen>
-        <Text style={typography.h2}>Sign in required</Text>
-        <Text style={{ marginTop: spacing.sm, color: colors.muted }}>
-          Sign in to read books you have purchased.
-        </Text>
-      </Screen>
+      <Page back title="Read">
+        <EmptyState icon="book" title="Sign in to read" subtitle="Sign in to open the books you have bought." />
+      </Page>
     );
   }
 
   if (loading) {
     return (
-      <Screen scroll={false} contentStyle={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-      </Screen>
+      <Page back title="Read">
+        <Loading label="Opening your book" />
+      </Page>
     );
   }
 
   if (!book) {
     return (
-      <Screen>
-        <Text style={typography.h2}>Access denied</Text>
-        <Text style={{ marginTop: spacing.sm, color: colors.muted }}>
-          Purchase this book to unlock the full content.
-        </Text>
-        <PrimaryButton
-          label="View book"
-          onPress={() => router.replace(`/book/${id}`)}
-          style={{ marginTop: spacing.lg }}
-        />
-      </Screen>
+      <Page back title="Read">
+        <EmptyState icon="lock" title="This book is not unlocked yet" subtitle="Buy the book to read the full content.">
+          <Button label="View book" onPress={() => router.replace(`/book/${id}`)} />
+        </EmptyState>
+      </Page>
     );
   }
 
   const openFile = () => {
     if (!book.fileUrl) {
-      Alert.alert('No file', 'This book does not have a downloadable file yet.');
+      NativeAlert.alert('No file yet', 'This book does not have a file to open yet.');
       return;
     }
     openExternalUrl(book.fileUrl).catch(() => Linking.openURL(book.fileUrl));
   };
 
   return (
-    <Screen>
-      <Text style={typography.h2}>{book.title}</Text>
-      <Text style={typography.caption}>by {book.author}</Text>
+    <Page back title={book.title} subtitle={book.author ? `by ${book.author}` : undefined}>
+      {book.fileUrl ? (
+        <Button label="Open the book" icon="book-open" size="lg" onPress={openFile} />
+      ) : (
+        <Card>
+          <Txt size={14} color={t.fgMuted}>
+            The book file will appear here once it is ready.
+          </Txt>
+        </Card>
+      )}
 
       {book.whatYoullLearn?.length ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What you'll learn</Text>
+        <Card style={{ marginTop: layout.section, gap: 10 }}>
+          <Txt size={16} weight="bold">
+            What you will learn
+          </Txt>
           {book.whatYoullLearn.map((line) => (
-            <Text key={line} style={styles.bullet}>• {line}</Text>
+            <Row key={line} align="flex-start" gap={10}>
+              <Icon name="check" size={15} color={t.up} style={{ marginTop: 3 }} />
+              <Txt size={14} color={t.fgMuted} style={{ flex: 1, lineHeight: 21 }}>
+                {line}
+              </Txt>
+            </Row>
           ))}
-        </View>
+        </Card>
       ) : null}
 
-      <Text style={[typography.body, { lineHeight: 22, marginVertical: spacing.lg }]}>
-        {book.description}
-      </Text>
-
-      {book.fileUrl ? (
-        <PrimaryButton label="Open book file" onPress={openFile} />
-      ) : (
-        <Text style={styles.note}>Digital file will appear here once available.</Text>
-      )}
-    </Screen>
+      {book.description ? (
+        <View style={{ marginTop: layout.section }}>
+          <Txt size={16} weight="bold" style={{ marginBottom: 8 }}>
+            About this book
+          </Txt>
+          <Txt size={14.5} color={t.fgMuted} style={{ lineHeight: 22 }}>
+            {book.description}
+          </Txt>
+        </View>
+      ) : null}
+    </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  section: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  sectionTitle: { fontWeight: '700', marginBottom: spacing.sm, color: colors.text },
-  bullet: { color: colors.muted, marginBottom: 4, lineHeight: 20 },
-  note: { color: colors.muted, fontSize: 13 },
-});

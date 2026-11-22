@@ -18,6 +18,7 @@ import { useApi } from '@/hooks/useApi';
 import { daysLeft, firstName, formatDate, greeting } from '@/utils/format';
 import { fetchNotifications } from '@/utils/notifications';
 import { eventEnded, priceLabel } from '@/utils/events';
+import { themed } from '@/utils/themedStyles';
 
 const TELEGRAM = 'https://t.me/quickxtrading';
 
@@ -28,6 +29,7 @@ const EXPLORE = [
   { label: 'Books', icon: 'book', route: '/books' },
   { label: 'Events', icon: 'calendar', route: '/events' },
   { label: 'Wallet', icon: 'credit-card', route: '/wallet', signedIn: true },
+  { label: 'Community', icon: 'users', route: '/community', signedOut: true },
 ];
 
 /** Big welcome for visitors who have not signed in. */
@@ -36,7 +38,7 @@ function Hero() {
   return (
     <Rise>
       <Card padded={false} style={{ overflow: 'hidden', borderColor: 'rgba(91,143,255,0.3)' }}>
-        <LinearGradient colors={['rgba(47,107,255,0.35)', 'rgba(13,19,34,0)']} start={{ x: 1, y: 0 }} end={{ x: 0.2, y: 1 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[t.glowStrong, t.glowEnd]} start={{ x: 1, y: 0 }} end={{ x: 0.2, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={{ padding: 22 }}>
           <Badge label="Forex with Maxwell" tone="brand" dot />
           <Txt size={30} weight="extrabold" style={{ marginTop: 14, letterSpacing: -0.8, lineHeight: 36 }}>
@@ -207,7 +209,7 @@ function NextEvent() {
 
 function Explore() {
   const { isSignedIn } = useAppState();
-  const items = EXPLORE.filter((x) => !x.signedIn || isSignedIn);
+  const items = EXPLORE.filter((x) => (x.signedIn ? isSignedIn : x.signedOut ? !isSignedIn : true));
   return (
     <View>
       <SectionTitle title="Explore" />
@@ -318,12 +320,14 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 },
-  cell: { width: '50%', padding: 5 },
-  third: { width: '33.333%', padding: 5 },
-  feature: { borderRadius: 18, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, padding: 14 },
-  featureOn: { borderColor: 'rgba(91,143,255,0.35)' },
-  explore: { borderRadius: 18, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, paddingVertical: 16, alignItems: 'center' },
-  date: { width: 52, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: t.brandSoft },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 },
+    cell: { width: '50%', padding: 5 },
+    third: { width: '33.333%', padding: 5 },
+    feature: { borderRadius: 18, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, padding: 14 },
+    featureOn: { borderColor: 'rgba(91,143,255,0.35)' },
+    explore: { borderRadius: 18, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, paddingVertical: 16, alignItems: 'center' },
+    date: { width: 52, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: t.brandSoft },
+  })
+);
