@@ -14,6 +14,7 @@ import { useAppState } from '@/context/AppState';
 import { useApi } from '@/hooks/useApi';
 import { BOOK_TYPE, mapBook } from '@/utils/catalog';
 import { formatPriceCedi } from '@/utils/format';
+import { themed } from '@/utils/themedStyles';
 
 function BookTile({ book }) {
   return (
@@ -96,9 +97,11 @@ export default function BooksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
-  cell: { width: '50%', paddingHorizontal: 6, marginBottom: 18 },
-  tile: { width: '100%' },
-  coverWrap: { width: '100%', aspectRatio: 3 / 4, borderRadius: 14, overflow: 'hidden', backgroundColor: t.card, borderWidth: 1, borderColor: t.line, alignItems: 'center', justifyContent: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
+    cell: { width: '50%', paddingHorizontal: 6, marginBottom: 18 },
+    tile: { width: '100%' },
+    coverWrap: { width: '100%', aspectRatio: 3 / 4, borderRadius: 14, overflow: 'hidden', backgroundColor: t.card, borderWidth: 1, borderColor: t.line, alignItems: 'center', justifyContent: 'center' },
+  })
+);

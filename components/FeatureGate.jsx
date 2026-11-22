@@ -9,6 +9,7 @@ import { useAppState } from '@/context/AppState';
 import { useApi } from '@/hooks/useApi';
 import { money } from '@/utils/currency';
 import { durationLabel } from '@/utils/format';
+import { themed } from '@/utils/themedStyles';
 
 /** The plan that sells just this feature, and the bundle that includes it. */
 export function plansFor(products, feature) {
@@ -33,7 +34,7 @@ export function FeatureOffer({ feature, compact, title, text }) {
   return (
     <Rise>
       <Card style={styles.offer} padded={false}>
-        <LinearGradient colors={['rgba(47,107,255,0.28)', 'rgba(13,19,34,0)']} start={{ x: 1, y: 0 }} end={{ x: 0.3, y: 0.8 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[t.glowStrong, t.glowEnd]} start={{ x: 1, y: 0 }} end={{ x: 0.3, y: 0.8 }} style={StyleSheet.absoluteFill} />
         <View style={{ padding: 22 }}>
           <IconBox name={meta.icon} size={52} />
           <Row gap={6} style={{ marginTop: 18 }}>
@@ -105,6 +106,8 @@ export default function FeatureGate({ feature, preview, children }) {
   );
 }
 
-const styles = StyleSheet.create({
-  offer: { borderColor: 'rgba(91,143,255,0.3)' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    offer: { borderColor: 'rgba(91,143,255,0.3)' },
+  })
+);

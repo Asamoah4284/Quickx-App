@@ -9,6 +9,7 @@ import { LogoMark } from '@/components/ui/Logo';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
+import { themed } from '@/utils/themedStyles';
 
 /** Shared frame for the sign-in and sign-up screens. Opens as a sheet over whatever the person was doing. */
 export function AuthScreen({ title, subtitle, onBack, backLabel = 'Back', top, children }) {
@@ -22,7 +23,8 @@ export function AuthScreen({ title, subtitle, onBack, backLabel = 'Back', top, c
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['rgba(47,107,255,0.28)', 'rgba(5,8,15,0)']}
+        colors={[t.glowStrong, t.glowEnd, t.glowEnd]}
+        locations={[0, 0.7, 1]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.6, y: 0.9 }}
         style={styles.glow}
@@ -70,28 +72,30 @@ export function AuthScreen({ title, subtitle, onBack, backLabel = 'Back', top, c
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
-  scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, marginBottom: 28 },
-  round: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: t.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reason: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: t.brandSoft,
-    marginBottom: 20,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.bg },
+    glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
+    scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
+    bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, marginBottom: 28 },
+    round: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.tint,
+      borderWidth: 1,
+      borderColor: t.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reason: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: 14,
+      backgroundColor: t.brandSoft,
+      marginBottom: 20,
+    },
+  })
+);

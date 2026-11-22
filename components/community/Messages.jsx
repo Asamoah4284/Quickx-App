@@ -12,6 +12,7 @@ import { fonts, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { firstName, timeAgo } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
+import { themed } from '@/utils/themedStyles';
 
 const POLL_MS = 15000;
 
@@ -274,28 +275,30 @@ export default function Messages({ openWith, onUnreadChange }) {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.line },
-  bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18 },
-  mine: { alignSelf: 'flex-end', backgroundColor: t.brand600, borderBottomRightRadius: 6 },
-  theirs: { alignSelf: 'flex-start', backgroundColor: t.ink700, borderBottomLeftRadius: 6 },
-  composer: { paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 128,
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: t.card,
-    borderWidth: 1,
-    borderColor: t.line,
-    color: t.fg,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-  },
-  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.brand600, alignItems: 'center', justifyContent: 'center' },
-  count: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.brand600, alignItems: 'center', justifyContent: 'center' },
-  mutedBar: { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.line },
+    bubble: { maxWidth: '82%', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18 },
+    mine: { alignSelf: 'flex-end', backgroundColor: t.brand600, borderBottomRightRadius: 6 },
+    theirs: { alignSelf: 'flex-start', backgroundColor: t.ink700, borderBottomLeftRadius: 6 },
+    composer: { paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 128,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 12,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.line,
+      color: t.fg,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+    },
+    send: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.brand600, alignItems: 'center', justifyContent: 'center' },
+    count: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.brand600, alignItems: 'center', justifyContent: 'center' },
+    mutedBar: { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
+  })
+);

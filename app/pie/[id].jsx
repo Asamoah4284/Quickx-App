@@ -19,6 +19,7 @@ import { cedis } from '@/utils/currency';
 import { daysLeft, formatDate, formatDateTime, timeAgo } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
 import { confirmAgain, confirmers, payWithPaystack } from '@/utils/paystack';
+import { themed } from '@/utils/themedStyles';
 
 function Term({ label, value, color }) {
   return (
@@ -499,12 +500,14 @@ export default function PieDetail() {
   );
 }
 
-const styles = StyleSheet.create({
-  term: { flexBasis: '47%', flexGrow: 1, borderRadius: 14, borderWidth: 1, borderColor: t.line, backgroundColor: t.bgRaised, paddingHorizontal: 14, paddingVertical: 11 },
-  terms: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  outcome: { flex: 1, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 11 },
-  slice: { marginTop: 16, alignSelf: 'stretch', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(91,143,255,0.3)', backgroundColor: t.brandSoft, paddingHorizontal: 14, paddingVertical: 11 },
-  timeline: { borderLeftWidth: 1, borderLeftColor: t.line, marginLeft: 4 },
-  dot: { position: 'absolute', left: -5, top: 6, width: 9, height: 9, borderRadius: 5, backgroundColor: t.brand400 },
-  updateImage: { width: '100%', height: 200, borderRadius: 14, borderWidth: 1, borderColor: t.line },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    term: { flexBasis: '47%', flexGrow: 1, borderRadius: 14, borderWidth: 1, borderColor: t.line, backgroundColor: t.bgRaised, paddingHorizontal: 14, paddingVertical: 11 },
+    terms: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    outcome: { flex: 1, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 11 },
+    slice: { marginTop: 16, alignSelf: 'stretch', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(91,143,255,0.3)', backgroundColor: t.brandSoft, paddingHorizontal: 14, paddingVertical: 11 },
+    timeline: { borderLeftWidth: 1, borderLeftColor: t.line, marginLeft: 4 },
+    dot: { position: 'absolute', left: -5, top: 6, width: 9, height: 9, borderRadius: 5, backgroundColor: t.brand400 },
+    updateImage: { width: '100%', height: 200, borderRadius: 14, borderWidth: 1, borderColor: t.line },
+  })
+);

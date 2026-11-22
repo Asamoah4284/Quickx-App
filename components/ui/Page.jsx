@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eyebrow, Rise, Txt } from '@/components/ui/kit';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 /** Room left at the bottom so the floating tab bar never covers content. */
 export const TAB_BAR_SPACE = 110;
@@ -119,8 +120,8 @@ export const Page = forwardRef(function Page(
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
-      <LinearGradient colors={['rgba(47,107,255,0.16)', 'rgba(5,8,15,0)']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.glow} pointerEvents="none" />
+      <StatusBar style={t.statusBar} />
+      <LinearGradient colors={[t.glow, t.glowEnd, t.glowEnd]} locations={[0, 0.7, 1]} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }} style={styles.glow} pointerEvents="none" />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         {keyboard ? (
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -147,42 +148,44 @@ export function Footer({ children }) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 360 },
-  content: { paddingHorizontal: 18 },
-  head: { paddingTop: 8, marginBottom: 22, gap: 18 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  round: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: t.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: t.down,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: t.bg,
-  },
-  footer: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: 'rgba(9,13,24,0.96)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: t.line,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.bg },
+    glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 360 },
+    content: { paddingHorizontal: 18 },
+    head: { paddingTop: 8, marginBottom: 22, gap: 18 },
+    bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    round: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.tint,
+      borderWidth: 1,
+      borderColor: t.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    badge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      minWidth: 17,
+      height: 17,
+      borderRadius: 9,
+      paddingHorizontal: 4,
+      backgroundColor: t.down,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: t.bg,
+    },
+    footer: {
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 8,
+      backgroundColor: t.tabBar,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.line,
+    },
+  })
+);

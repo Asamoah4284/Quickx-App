@@ -10,7 +10,7 @@ import { t } from '@/constants/theme';
  */
 export function LogoMark({ size = 36, onDark = true }) {
   const ring = onDark ? t.brand500 : t.logoNavy;
-  const book = onDark ? '#ffffff' : t.logoNavy;
+  const book = onDark ? t.fg : t.logoNavy;
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <Circle cx="22.5" cy="24" r="19" stroke={ring} strokeWidth="4" />

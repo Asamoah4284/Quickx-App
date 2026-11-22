@@ -8,21 +8,23 @@ import {
 import Feather from '@expo/vector-icons/Feather';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { DarkTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { Stack, router, useSegments } from 'expo-router';
+import { Stack, router, usePathname, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { ActionSheetHost } from '@/components/ui/ActionSheet';
 import { LogoMark } from '@/components/ui/Logo';
-import { fonts, t } from '@/constants/theme';
+import { t } from '@/constants/theme';
 import { AppStateProvider, useAppState } from '@/context/AppState';
+import { ThemeProvider, loadThemeChoice, takeReopen } from '@/context/ThemeContext';
 import { appRouteFor } from '@/utils/pushNotifications';
+import { themed } from '@/utils/themedStyles';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -30,17 +32,21 @@ export const unstable_settings = { initialRouteName: '(tabs)' };
 
 SplashScreen.preventAutoHideAsync();
 
-const navTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: t.brand400,
-    background: t.bg,
-    card: t.bgRaised,
-    text: t.fg,
-    border: t.line,
-    notification: t.down,
-  },
+/** Navigation colours for the current theme. */
+const navTheme = () => {
+  const base = t.scheme === 'light' ? DefaultTheme : DarkTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: t.brand400,
+      background: t.bg,
+      card: t.bgRaised,
+      text: t.fg,
+      border: t.line,
+      notification: t.down,
+    },
+  };
 };
 
 /** Opens the sign-in sheet when something calls requireSignIn(). */
@@ -69,43 +75,45 @@ function NotificationRouter() {
   return null;
 }
 
-const stack = {
+const stack = () => ({
   headerShown: false,
   contentStyle: { backgroundColor: t.bg },
   animation: 'slide_from_right',
   gestureEnabled: true,
   fullScreenGestureEnabled: false,
-};
-
-/** Screens kept from the earlier app still use the native header, styled dark. */
-const header = (title) => ({
-  headerShown: true,
-  title,
-  headerStyle: { backgroundColor: t.bg },
-  headerTintColor: t.fg,
-  headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 16 },
-  headerShadowVisible: false,
-  headerBackTitle: 'Back',
 });
+
+/** After a theme change the screens remount; this puts the person back where they were. */
+function ReopenAfterTheme() {
+  const pathname = usePathname();
+  useEffect(() => {
+    const to = takeReopen();
+    if (to && pathname !== to) router.push(to);
+    // Only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
 
 function RootNav() {
   const { authReady } = useAppState();
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <SignInWatcher />
-      <NotificationRouter />
-      <Stack screenOptions={stack}>
+      {Platform.OS !== 'web' ? <NotificationRouter /> : null}
+      <ReopenAfterTheme />
+      <Stack screenOptions={stack()}>
         <Stack.Screen name="(tabs)" options={{ animation: 'none', gestureEnabled: false }} />
         <Stack.Screen name="(auth)" options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true }} />
-        <Stack.Screen name="learn/[courseId]/index" options={header('Learning area')} />
+        <Stack.Screen name="learn/[courseId]/index" />
         <Stack.Screen name="learn/[courseId]/lesson/[lessonId]" />
-        <Stack.Screen name="downloads/index" options={header('Downloads')} />
+        <Stack.Screen name="downloads/index" />
         <Stack.Screen name="downloads/play" />
-        <Stack.Screen name="book/[id]/read" options={header('Read')} />
-        <Stack.Screen name="events/my-tickets" options={header('My tickets')} />
-        <Stack.Screen name="notifications" options={header('Notifications')} />
-        <Stack.Screen name="settings/index" options={header('Profile and settings')} />
-        <Stack.Screen name="delete-account" options={header('Delete account')} />
+        <Stack.Screen name="book/[id]/read" />
+        <Stack.Screen name="events/my-tickets" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="settings/index" />
+        <Stack.Screen name="delete-account" />
         <Stack.Screen name="checkout/[key]" options={{ presentation: 'card' }} />
         <Stack.Screen name="owner/signal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="payment-done" options={{ animation: 'none' }} />
@@ -132,27 +140,39 @@ export default function RootLayout() {
     ...FontAwesome.font,
     ...Ionicons.font,
   });
+  const [themeChoice, setThemeChoice] = useState(null);
+
+  useEffect(() => {
+    loadThemeChoice().then(setThemeChoice);
+  }, []);
 
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
+  const ready = loaded && themeChoice;
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (!loaded) return null;
+  if (!ready) return null;
 
   return (
     <AppStateProvider>
-      <ThemeProvider value={navTheme}>
-        <StatusBar style="light" />
-        <RootNav />
+      <ThemeProvider initialChoice={themeChoice}>
+        {(scheme) => (
+          <NavThemeProvider value={navTheme()}>
+            <StatusBar style={t.statusBar} />
+            <RootNav key={scheme} />
+          </NavThemeProvider>
+        )}
       </ThemeProvider>
     </AppStateProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  boot: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    boot: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
+  })
+);

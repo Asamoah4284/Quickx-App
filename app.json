@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "quickxlearn",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.quickxlearn.app",
@@ -39,10 +39,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-icon-light.png",
           "imageWidth": 150,
           "resizeMode": "contain",
-          "backgroundColor": "#05080f"
+          "backgroundColor": "#f5f7fb",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#05080f"
+          }
         }
       ],
       [
@@ -62,7 +66,8 @@
       "expo-font",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-image"
+      "expo-image",
+      "expo-system-ui"
     ],
     "experiments": {
       "typedRoutes": false

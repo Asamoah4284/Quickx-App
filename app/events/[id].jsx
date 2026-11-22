@@ -19,6 +19,7 @@ import { eventEnded, priceLabel } from '@/utils/events';
 import { formatDate } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
 import { confirmAgain, confirmers, payWithPaystack } from '@/utils/paystack';
+import { themed } from '@/utils/themedStyles';
 
 const FORMAT = { online: 'Online', 'in-person': 'In person', hybrid: 'Online and in person' };
 
@@ -323,6 +324,8 @@ export default function EventDetail() {
   );
 }
 
-const styles = StyleSheet.create({
-  cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, backgroundColor: t.ink700 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, backgroundColor: t.ink700 },
+  })
+);

@@ -4,6 +4,7 @@ import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useReducedMotion,
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 import { t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export const PIE_STATUS = {
   funding: { label: 'Open for slices', tone: 'brand', help: 'Members can still join.' },
@@ -58,7 +59,7 @@ export function PieRing({ value = 0, size = 150, stroke = 12, children }) {
             <Stop offset="1" stopColor="#1b5ef5" />
           </LinearGradient>
         </Defs>
-        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={t.tintStrong} strokeWidth={stroke} />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -92,7 +93,9 @@ export function FundingBar({ pie }) {
   );
 }
 
-const styles = StyleSheet.create({
-  track: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.07)' },
-  fill: { height: '100%', borderRadius: 4, backgroundColor: t.brand500 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    track: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: t.tintStrong },
+    fill: { height: '100%', borderRadius: 4, backgroundColor: t.brand500 },
+  })
+);

@@ -16,6 +16,7 @@ import { BOOK_TYPE, fetchBookContent, fetchBookOffers, fetchBookPreview } from '
 import { formatPriceCedi } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
 import { confirmAgain, confirmers, payWithPaystack } from '@/utils/paystack';
+import { themed } from '@/utils/themedStyles';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -257,7 +258,9 @@ export default function BookDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  cover: { width: 180, aspectRatio: 3 / 4, borderRadius: 16, overflow: 'hidden', backgroundColor: t.card, borderWidth: 1, borderColor: t.line, alignItems: 'center', justifyContent: 'center' },
-  review: { borderRadius: 16, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, padding: 14 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    cover: { width: 180, aspectRatio: 3 / 4, borderRadius: 16, overflow: 'hidden', backgroundColor: t.card, borderWidth: 1, borderColor: t.line, alignItems: 'center', justifyContent: 'center' },
+    review: { borderRadius: 16, borderWidth: 1, borderColor: t.line, backgroundColor: t.card, padding: 14 },
+  })
+);

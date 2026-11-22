@@ -13,6 +13,7 @@ import Animated, {
 import { PressableScale } from '@/components/ui/PressableScale';
 import { fonts, radii, shadow, t } from '@/constants/theme';
 import { initials } from '@/utils/format';
+import { themed } from '@/utils/themedStyles';
 
 export { Feather as Icon };
 
@@ -113,7 +114,7 @@ export function CountUp({ value, decimals = 0, prefix = '', suffix = '', ...txt 
 export function Card({ children, style, onPress, tone, padded = true, ...rest }) {
   const toneStyle =
     tone === 'brand'
-      ? { borderColor: 'rgba(91,143,255,0.45)', backgroundColor: '#0f1830' }
+      ? { borderColor: 'rgba(91,143,255,0.45)', backgroundColor: t.focusBg }
       : tone === 'up'
         ? { borderColor: 'rgba(47,208,140,0.3)' }
         : tone === 'down'
@@ -218,16 +219,17 @@ export function Button({
 
 // ── Badge and alerts ─────────────────────────────────────────────────────────
 
-const TONES = {
+const tones = () => ({
   brand: { bg: t.brandSoft, fg: t.brand300 },
   up: { bg: t.upSoft, fg: t.up },
   down: { bg: t.downSoft, fg: t.down },
   warn: { bg: t.warnSoft, fg: t.warn },
-  neutral: { bg: 'rgba(255,255,255,0.07)', fg: t.fgMuted },
-};
+  neutral: { bg: t.tintStrong, fg: t.fgMuted },
+});
 
 export function Badge({ label, tone = 'neutral', dot, icon, style }) {
-  const c = TONES[tone] || TONES.neutral;
+  const all = tones();
+  const c = all[tone] || all.neutral;
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }, style]}>
       {dot ? <PulseDot color={c.fg} /> : null}
@@ -267,7 +269,8 @@ export function PulseDot({ color = t.up, size = 7 }) {
 }
 
 export function Alert({ tone = 'down', icon, title, children, style }) {
-  const c = TONES[tone] || TONES.down;
+  const all = tones();
+  const c = all[tone] || all.down;
   const name = icon || (tone === 'up' ? 'check-circle' : tone === 'brand' ? 'info' : tone === 'warn' ? 'alert-triangle' : 'alert-circle');
   return (
     <View style={[styles.alert, { backgroundColor: c.bg, borderColor: c.bg }, style]}>
@@ -361,7 +364,7 @@ export function Chips({ items, value, onChange, style }) {
             haptic="select"
             onPress={() => onChange(item.value)}
             style={[styles.chip, active && styles.chipActive, item.icon && { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-            {item.icon ? <Icon name={item.icon} size={12} color={active ? t.fg : t.fgSubtle} /> : null}
+            {item.icon ? <Feather name={item.icon} size={12} color={active ? t.fg : t.fgSubtle} /> : null}
             <Txt size={13} weight="semibold" color={active ? t.fg : t.fgMuted}>
               {item.label}
             </Txt>
@@ -533,6 +536,16 @@ export function Stat({ label, value, tone, style, children }) {
   );
 }
 
+/** Thin progress bar; value is 0 to 1. */
+export function ProgressBar({ value = 0, tone = 'brand', height = 6, style }) {
+  const fill = tone === 'up' ? t.up : t.brand500;
+  return (
+    <View style={[{ height, borderRadius: height / 2, backgroundColor: t.tintStrong, overflow: 'hidden' }, style]}>
+      <View style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, height: '100%', borderRadius: height / 2, backgroundColor: fill }} />
+    </View>
+  );
+}
+
 export function Loading({ label }) {
   return (
     <View style={{ paddingVertical: 48, alignItems: 'center', gap: 12 }}>
@@ -546,137 +559,139 @@ export function Loading({ label }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: t.card,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: t.line,
-    overflow: 'hidden',
-  },
-  cardPad: { padding: 18 },
-  btn: {
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPrimary: { backgroundColor: t.brand600 },
-  btnSecondary: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: t.lineStrong },
-  btnGhost: { backgroundColor: 'transparent' },
-  btnDanger: { backgroundColor: t.down },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-    alignSelf: 'flex-start',
-  },
-  alert: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  tabs: {
-    flexDirection: 'row',
-    padding: 4,
-    borderRadius: radii.full,
-    backgroundColor: t.bgRaised,
-    borderWidth: 1,
-    borderColor: t.line,
-  },
-  tabPill: {
-    position: 'absolute',
-    top: 4,
-    bottom: 4,
-    left: 0,
-    borderRadius: radii.full,
-    backgroundColor: t.ink700,
-    borderWidth: 1,
-    borderColor: t.lineStrong,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  count: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: 9,
-    backgroundColor: t.ink600,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: t.line,
-  },
-  chipActive: { borderColor: 'rgba(91,143,255,0.6)', backgroundColor: t.brandSoft },
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 50,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: t.bgRaised,
-    borderWidth: 1,
-    borderColor: t.lineStrong,
-  },
-  inputFocus: { borderColor: t.brand400 },
-  check: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: t.line,
-  },
-  box: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: t.lineStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  choice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: t.line,
-  },
-  choiceActive: { borderColor: 'rgba(91,143,255,0.6)', backgroundColor: 'rgba(47,107,255,0.1)' },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: t.lineStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: t.brand400 },
-  stat: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: t.card,
-    borderWidth: 1,
-    borderColor: t.line,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: t.card,
+      borderRadius: radii.card,
+      borderWidth: 1,
+      borderColor: t.line,
+      overflow: 'hidden',
+    },
+    cardPad: { padding: 18 },
+    btn: {
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    btnPrimary: { backgroundColor: t.brand600 },
+    btnSecondary: { backgroundColor: t.tint, borderWidth: 1, borderColor: t.lineStrong },
+    btnGhost: { backgroundColor: 'transparent' },
+    btnDanger: { backgroundColor: t.down },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: radii.full,
+      alignSelf: 'flex-start',
+    },
+    alert: {
+      flexDirection: 'row',
+      gap: 10,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+    },
+    tabs: {
+      flexDirection: 'row',
+      padding: 4,
+      borderRadius: radii.full,
+      backgroundColor: t.bgRaised,
+      borderWidth: 1,
+      borderColor: t.line,
+    },
+    tabPill: {
+      position: 'absolute',
+      top: 4,
+      bottom: 4,
+      left: 0,
+      borderRadius: radii.full,
+      backgroundColor: t.ink700,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+    },
+    tab: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+    },
+    count: {
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 5,
+      borderRadius: 9,
+      backgroundColor: t.ink600,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chip: {
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      borderColor: t.line,
+    },
+    chipActive: { borderColor: 'rgba(91,143,255,0.6)', backgroundColor: t.brandSoft },
+    input: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 50,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      backgroundColor: t.bgRaised,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+    },
+    inputFocus: { borderColor: t.brand400 },
+    check: {
+      flexDirection: 'row',
+      gap: 12,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.line,
+    },
+    box: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: t.lineStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    choice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.line,
+    },
+    choiceActive: { borderColor: 'rgba(91,143,255,0.6)', backgroundColor: 'rgba(47,107,255,0.1)' },
+    radio: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: t.lineStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: t.brand400 },
+    stat: {
+      flex: 1,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.line,
+    },
+  })
+);

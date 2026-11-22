@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Txt } from '@/components/ui/kit';
 import { t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 /** Friendly "nothing here yet" block. `icon` is a FontAwesome name. */
 export function EmptyState({ icon = 'inbox', title, subtitle, children }) {
@@ -24,7 +25,9 @@ export function EmptyState({ icon = 'inbox', title, subtitle, children }) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 24, borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', borderColor: t.line },
-  icon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: t.brandSoft },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 24, borderRadius: 20, borderWidth: 1, borderStyle: 'dashed', borderColor: t.line },
+    icon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: t.brandSoft },
+  })
+);

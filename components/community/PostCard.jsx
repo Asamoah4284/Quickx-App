@@ -13,6 +13,7 @@ import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { timeAgo } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
+import { themed } from '@/utils/themedStyles';
 
 const REPORT_REASONS = ['Spam or advertising', 'Rude or abusive', 'Scam or fake offer', 'Something else'];
 
@@ -49,7 +50,7 @@ function Poll({ poll, onChange }) {
             haptic="select"
             onPress={() => vote(i)}
             style={[styles.option, mine && { borderColor: 'rgba(91,143,255,0.6)' }]}>
-            {showResults ? <View style={[styles.optionFill, { width: `${pct}%`, backgroundColor: mine ? 'rgba(47,107,255,0.25)' : 'rgba(255,255,255,0.06)' }]} /> : null}
+            {showResults ? <View style={[styles.optionFill, { width: `${pct}%`, backgroundColor: mine ? 'rgba(47,107,255,0.25)' : t.tint }]} /> : null}
             <Row justify="space-between">
               <Txt size={14} style={{ flex: 1 }}>
                 {option.text}
@@ -368,10 +369,12 @@ export default function PostCard({ post, onChange, onRemove }) {
   );
 }
 
-const styles = StyleSheet.create({
-  option: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: t.line, overflow: 'hidden' },
-  optionFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
-  file: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, backgroundColor: t.bgRaised, borderWidth: 1, borderColor: t.line },
-  actions: { marginTop: 14, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    option: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: t.line, overflow: 'hidden' },
+    optionFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
+    file: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, backgroundColor: t.bgRaised, borderWidth: 1, borderColor: t.line },
+    actions: { marginTop: 14, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line },
+    action: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999 },
+  })
+);

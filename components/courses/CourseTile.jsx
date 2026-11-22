@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { Badge, Card, Icon, Row, Txt } from '@/components/ui/kit';
 import { assetUrl } from '@/constants/api';
 import { t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export const LEVELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 
@@ -26,7 +27,7 @@ export function CourseTile({ course }) {
           <LinearGradient colors={['rgba(18,70,196,0.55)', t.cardHi]} style={StyleSheet.absoluteFill} />
         )}
         <View style={styles.play}>
-          <Icon name="play" size={16} color={t.bg} style={{ marginLeft: 2 }} />
+          <Icon name="play" size={16} color={t.media} style={{ marginLeft: 2 }} />
         </View>
       </View>
       <View style={{ padding: 16 }}>
@@ -74,10 +75,12 @@ export function CourseProgressRow({ course }) {
   );
 }
 
-const styles = StyleSheet.create({
-  thumb: { aspectRatio: 16 / 9, backgroundColor: t.ink700, alignItems: 'center', justifyContent: 'center' },
-  play: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
-  small: { width: 84, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: t.ink700 },
-  track: { flex: 1, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 3, backgroundColor: t.brand500 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    thumb: { aspectRatio: 16 / 9, backgroundColor: t.ink700, alignItems: 'center', justifyContent: 'center' },
+    play: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
+    small: { width: 84, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: t.ink700 },
+    track: { flex: 1, height: 5, borderRadius: 3, backgroundColor: t.tintStrong, overflow: 'hidden' },
+    fill: { height: '100%', borderRadius: 3, backgroundColor: t.brand500 },
+  })
+);

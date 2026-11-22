@@ -12,6 +12,7 @@ import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { useApi } from '@/hooks/useApi';
 import { eventEnded, priceLabel } from '@/utils/events';
+import { themed } from '@/utils/themedStyles';
 
 
 const FORMAT = { online: 'Online', 'in-person': 'In person', hybrid: 'Online and in person' };
@@ -107,7 +108,9 @@ export default function EventsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  cover: { width: '100%', aspectRatio: 16 / 8, backgroundColor: t.ink700 },
-  date: { width: 52, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: t.brandSoft },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    cover: { width: '100%', aspectRatio: 16 / 8, backgroundColor: t.ink700 },
+    date: { width: 52, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: t.brandSoft },
+  })
+);

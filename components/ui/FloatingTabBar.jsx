@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Txt } from '@/components/ui/kit';
 import { t } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { themed } from '@/utils/themedStyles';
 
 export const TABS = [
   { name: 'index', label: 'Home', icon: 'home' },
@@ -72,22 +73,24 @@ export function FloatingTabBar({ state, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 14 },
-  bar: {
-    flexDirection: 'row',
-    padding: 6,
-    borderRadius: 26,
-    backgroundColor: 'rgba(13,19,34,0.97)',
-    borderWidth: 1,
-    borderColor: t.lineStrong,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  pillSlot: { position: 'absolute', top: 6, bottom: 6, left: 6, paddingHorizontal: 2 },
-  pill: { flex: 1, borderRadius: 20, backgroundColor: t.brandSoft, borderWidth: 1, borderColor: 'rgba(91,143,255,0.35)' },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 8 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 14 },
+    bar: {
+      flexDirection: 'row',
+      padding: 6,
+      borderRadius: 26,
+      backgroundColor: t.tabBar,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      elevation: 16,
+    },
+    pillSlot: { position: 'absolute', top: 6, bottom: 6, left: 6, paddingHorizontal: 2 },
+    pill: { flex: 1, borderRadius: 20, backgroundColor: t.brandSoft, borderWidth: 1, borderColor: 'rgba(91,143,255,0.35)' },
+    tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 8 },
+  })
+);

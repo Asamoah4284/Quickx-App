@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Txt } from '@/components/ui/kit';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 let show = null;
 
@@ -70,17 +71,19 @@ export function ActionSheetHost() {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: t.overlay },
-  sheet: {
-    marginHorizontal: 10,
-    marginBottom: 10,
-    padding: 8,
-    borderRadius: 24,
-    backgroundColor: t.cardHi,
-    borderWidth: 1,
-    borderColor: t.lineStrong,
-  },
-  item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, borderRadius: 16 },
-  cancel: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.05)' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: t.overlay },
+    sheet: {
+      marginHorizontal: 10,
+      marginBottom: 10,
+      padding: 8,
+      borderRadius: 24,
+      backgroundColor: t.cardHi,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+    },
+    item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, borderRadius: 16 },
+    cancel: { marginTop: 6, backgroundColor: t.tint },
+  })
+);

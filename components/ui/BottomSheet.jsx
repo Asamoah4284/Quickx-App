@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radii, spacing } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 /** Slide-up sheet with a dimmed backdrop, grabber, title and keyboard handling. */
 export function BottomSheet({ visible, onClose, title, subtitle, children }) {
@@ -43,35 +44,37 @@ export function BottomSheet({ visible, onClose, title, subtitle, children }) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
-  sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    maxHeight: '88%',
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  head: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
-  subtitle: { fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 19 },
-  close: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.full,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.md,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    flex: { flex: 1, justifyContent: 'flex-end' },
+    backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
+    sheet: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      maxHeight: '88%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 40,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      marginBottom: spacing.md,
+    },
+    head: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg },
+    title: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+    subtitle: { fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 19 },
+    close: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.full,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: spacing.md,
+    },
+  })
+);

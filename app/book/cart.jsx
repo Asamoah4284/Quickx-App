@@ -17,6 +17,7 @@ import { mapBook } from '@/utils/catalog';
 import { formatPriceCedi } from '@/utils/format';
 import { haptics } from '@/utils/haptics';
 import { confirmAgain, confirmers, payWithPaystack } from '@/utils/paystack';
+import { themed } from '@/utils/themedStyles';
 
 export default function BookCartScreen() {
   const { token, isSignedIn, requireSignIn, cartBookIds, toggleCartBook, clearCart } = useAppState();
@@ -160,6 +161,8 @@ export default function BookCartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  thumb: { width: 46, height: 60, borderRadius: 8, overflow: 'hidden', backgroundColor: t.ink700, alignItems: 'center', justifyContent: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    thumb: { width: 46, height: 60, borderRadius: 8, overflow: 'hidden', backgroundColor: t.ink700, alignItems: 'center', justifyContent: 'center' },
+  })
+);

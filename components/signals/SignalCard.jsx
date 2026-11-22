@@ -9,6 +9,7 @@ import { t } from '@/constants/theme';
 import { useCopy } from '@/hooks/useCopy';
 import { formatDateTime, timeAgo } from '@/utils/format';
 import { levelFormatter, orderLabel, rewardRatio, signalAsText, STATUS_META } from '@/utils/signals';
+import { themed } from '@/utils/themedStyles';
 
 export function DirectionPill({ direction }) {
   const buy = direction === 'buy';
@@ -166,26 +167,28 @@ export default function SignalCard({ signal, preview = false }) {
   );
 }
 
-const styles = StyleSheet.create({
-  dir: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  tf: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  level: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: t.line,
-    backgroundColor: t.bgRaised,
-  },
-  copyAll: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: t.lineStrong,
-  },
-  chart: { marginTop: 14, width: '100%', aspectRatio: 16 / 10, borderRadius: 14, backgroundColor: t.ink700 },
-  updates: { marginTop: 14, gap: 10, borderLeftWidth: 2, borderLeftColor: t.line, paddingLeft: 12 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    dir: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    tf: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: t.tint },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
+    level: {
+      flexBasis: '47%',
+      flexGrow: 1,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.line,
+      backgroundColor: t.bgRaised,
+    },
+    copyAll: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+    },
+    chart: { marginTop: 14, width: '100%', aspectRatio: 16 / 10, borderRadius: 14, backgroundColor: t.ink700 },
+    updates: { marginTop: 14, gap: 10, borderLeftWidth: 2, borderLeftColor: t.line, paddingLeft: 12 },
+  })
+);

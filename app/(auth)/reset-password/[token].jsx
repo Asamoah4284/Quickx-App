@@ -8,6 +8,7 @@ import { AuthScreen } from '@/components/ui/AuthScreen';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, spacing } from '@/constants/theme';
 import { isStrongPassword, resetPassword } from '@/utils/auth';
+import { themed } from '@/utils/themedStyles';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams();
@@ -92,11 +93,13 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md },
-  success: { color: colors.success, fontWeight: '600', lineHeight: 20 },
-  label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eyeBtn: { padding: spacing.sm },
-  link: { color: colors.primary, fontWeight: '700', marginTop: spacing.xl, textAlign: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md },
+    success: { color: colors.success, fontWeight: '600', lineHeight: 20 },
+    label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
+    passwordRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    eyeBtn: { padding: spacing.sm },
+    link: { color: colors.primary, fontWeight: '700', marginTop: spacing.xl, textAlign: 'center' },
+  })
+);

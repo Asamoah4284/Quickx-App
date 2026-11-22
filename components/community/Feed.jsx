@@ -16,6 +16,7 @@ import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { haptics } from '@/utils/haptics';
 import { uploadFileToS3 } from '@/utils/uploadToS3';
+import { themed } from '@/utils/themedStyles';
 
 const MAX_IMAGES = 4;
 
@@ -227,8 +228,10 @@ export default function Feed() {
   );
 }
 
-const styles = StyleSheet.create({
-  thumb: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: t.ink700 },
-  remove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
-  toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: t.line },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    thumb: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: t.ink700 },
+    remove: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
+    toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: t.line },
+  })
+);
