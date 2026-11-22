@@ -2,6 +2,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { colors, radii, spacing } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export function AuthField({
   icon,
@@ -40,26 +41,28 @@ export function AuthField({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    minHeight: 54,
-    marginBottom: spacing.md,
-  },
-  icon: {
-    marginRight: spacing.sm,
-    width: 18,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-    paddingVertical: spacing.md,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.md,
+      minHeight: 54,
+      marginBottom: spacing.md,
+    },
+    icon: {
+      marginRight: spacing.sm,
+      width: 18,
+    },
+    input: {
+      flex: 1,
+      fontSize: 16,
+      color: colors.text,
+      paddingVertical: spacing.md,
+    },
+  })
+);

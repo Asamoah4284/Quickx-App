@@ -1,4 +1,13 @@
 import { api } from '@/constants/api';
+import { money } from '@/utils/currency';
+
+export function eventEnded(event) {
+  return new Date(event.endDate || event.startDate) < new Date();
+}
+
+export function priceLabel(event) {
+  return event.isFree || !Number(event.price) ? 'Free' : money(Number(event.price));
+}
 
 /**
  * Fetch list of events with query filters

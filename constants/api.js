@@ -60,10 +60,43 @@ export async function api(path, { method = 'GET', body, token } = {}) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const fromErrors = Array.isArray(data.errors) ? data.errors[0]?.msg : null;
-      throw new Error(fromErrors || data.message || 'Request failed');
+      const error = new Error(fromErrors || data.message || 'Something went wrong. Please try again.');
+      error.status = res.status;
+      error.code = data.code;
+      error.data = data;
+      if (res.status === 401 && token) onUnauthorized?.();
+      throw error;
     }
     return data;
+  } catch (error) {
+    if (isNetworkError(error)) {
+      const friendly = new Error('Cannot reach QuickX. Check your connection and try again.');
+      friendly.network = true;
+      throw friendly;
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Called when a signed-in request comes back 401 (the session ended). Set by AppState. */
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
+const CDN = String(process.env.EXPO_PUBLIC_CLOUDFRONT_URL || 'https://d3mvqd2a72xwvk.cloudfront.net').replace(/\/$/, '');
+
+/** Image and file links: S3 links go through CloudFront, like on the website. */
+export function assetUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('.cloudfront.net')) return trimmed;
+  const s3 = trimmed.match(/^https?:\/\/[^/]+\.s3[.-][^/]*amazonaws\.com(\/[^?#]+)/i);
+  if (s3 && CDN) return `${CDN}${s3[1]}`;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // A path on our own server, like /uploads/x.png
+  return `${API_BASE.replace(/\/api$/, '')}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
 }

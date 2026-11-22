@@ -3,16 +3,13 @@ import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '@/constants/theme';
+import { radii, spacing, t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
+
+// The video area is dark in both themes, so its controls stay white.
+const MEDIA_FG = '#ffffff';
 
 function formatTime(ms = 0) {
   const total = Math.max(0, Math.floor(Number(ms) / 1000));
@@ -21,16 +18,12 @@ function formatTime(ms = 0) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function LessonVideoPlayer({
-  uri,
-  posterUri,
-  title,
-  subtitle,
-  lessonIndex,
-  lessonTotal,
-}) {
+/**
+ * The lesson video: a rounded 16:9 frame with our own controls. The screen around it shows
+ * the title and the back button, so the overlay only has playback controls.
+ */
+export function LessonVideoPlayer({ uri, style }) {
   const videoRef = useRef(null);
-  const insets = useSafeAreaInsets();
   const player = useVideoPlayer(uri, (p) => {
     p.play();
   });
@@ -63,12 +56,8 @@ export function LessonVideoPlayer({
   const durationMs = (player.duration || 0) * 1000;
   const progress = durationMs > 0 ? Math.min(1, positionMs / durationMs) : 0;
 
-  const revealControls = () => {
-    setControlsVisible(true);
-  };
-
   const togglePlay = () => {
-    revealControls();
+    setControlsVisible(true);
     if (!loaded && !isPlaying) {
       player.play();
       return;
@@ -77,21 +66,15 @@ export function LessonVideoPlayer({
     else player.play();
   };
 
-  const seekToRatio = (ratio) => {
-    if (!player.duration) return;
-    const nextSec = Math.max(0, Math.min(player.duration, ratio * player.duration));
-    player.currentTime = nextSec;
-  };
-
   const onTrackPress = (event) => {
-    const x = event.nativeEvent.locationX;
-    const width = trackWidth.current || 1;
-    seekToRatio(x / width);
-    revealControls();
+    setControlsVisible(true);
+    if (!player.duration) return;
+    const ratio = event.nativeEvent.locationX / (trackWidth.current || 1);
+    player.currentTime = Math.max(0, Math.min(player.duration, ratio * player.duration));
   };
 
   const openFullscreen = async () => {
-    revealControls();
+    setControlsVisible(true);
     try {
       await videoRef.current?.enterFullscreen();
     } catch {
@@ -100,217 +83,103 @@ export function LessonVideoPlayer({
   };
 
   return (
-    <View style={[styles.shell, { paddingTop: Math.max(insets.top, 8) }]}>
-      <View style={styles.frame}>
-        <VideoView
-          ref={videoRef}
-          style={styles.video}
-          player={player}
-          nativeControls={false}
-          contentFit="contain"
-        />
+    <View style={[styles.frame, style]}>
+      <VideoView ref={videoRef} style={styles.video} player={player} nativeControls={false} contentFit="contain" />
 
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setControlsVisible((v) => !v)}>
-          {controlsVisible || buffering ? (
-            <LinearGradient
-              colors={['rgba(7,21,47,0.72)', 'transparent', 'rgba(7,21,47,0.82)']}
-              locations={[0, 0.45, 1]}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="box-none">
-              <View style={styles.topBar} pointerEvents="box-none">
-                <View style={{ flex: 1 }} pointerEvents="none">
-                  {lessonTotal ? (
-                    <Text style={styles.eyebrow}>
-                      Lesson {lessonIndex}/{lessonTotal}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.title} numberOfLines={1}>
-                    {title}
-                  </Text>
-                  {subtitle ? (
-                    <Text style={styles.subtitle} numberOfLines={1}>
-                      {subtitle}
-                    </Text>
-                  ) : null}
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => setControlsVisible((v) => !v)}>
+        {controlsVisible || buffering ? (
+          <LinearGradient
+            colors={['rgba(5,8,15,0.55)', 'transparent', 'rgba(5,8,15,0.8)']}
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="box-none">
+            <View style={styles.topBar} pointerEvents="box-none">
+              <Pressable style={styles.iconBtn} onPress={openFullscreen} hitSlop={10} accessibilityLabel="Full screen">
+                <FontAwesome name="expand" size={15} color={MEDIA_FG} />
+              </Pressable>
+            </View>
+
+            <View style={styles.center} pointerEvents="box-none">
+              {buffering ? (
+                <View style={styles.spinnerWrap}>
+                  <ActivityIndicator color={MEDIA_FG} size="large" />
                 </View>
-                <Pressable style={styles.iconBtn} onPress={openFullscreen} hitSlop={10}>
-                  <FontAwesome name="expand" size={16} color={colors.white} />
+              ) : (
+                <Pressable style={styles.playBtn} onPress={togglePlay} accessibilityLabel={isPlaying ? 'Pause' : 'Play'}>
+                  <FontAwesome name={isPlaying ? 'pause' : 'play'} size={22} color={MEDIA_FG} style={isPlaying ? null : { marginLeft: 3 }} />
                 </Pressable>
-              </View>
+              )}
+            </View>
 
-              <View style={styles.center} pointerEvents="box-none">
-                {buffering ? (
-                  <View style={styles.spinnerWrap}>
-                    <ActivityIndicator color={colors.white} size="large" />
-                  </View>
-                ) : (
-                  <Pressable style={styles.playBtn} onPress={togglePlay}>
-                    <FontAwesome
-                      name={isPlaying ? 'pause' : 'play'}
-                      size={22}
-                      color={colors.white}
-                      style={isPlaying ? null : { marginLeft: 3 }}
-                    />
-                  </Pressable>
-                )}
-              </View>
-
-              <View style={styles.bottomBar}>
-                <Text style={styles.time}>{formatTime(positionMs)}</Text>
-                <Pressable
-                  style={styles.track}
-                  onLayout={(e) => {
-                    trackWidth.current = e.nativeEvent.layout.width;
-                  }}
-                  onPress={onTrackPress}
-                  onPressIn={() => setSeeking(true)}
-                  onPressOut={() => setSeeking(false)}>
-                  <View style={styles.trackBg} />
-                  <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
-                  <View style={[styles.thumb, { left: `${Math.min(100, progress * 100)}%` }]} />
-                </Pressable>
-                <Text style={styles.time}>{formatTime(durationMs)}</Text>
-                <Pressable style={styles.smallPlay} onPress={togglePlay} hitSlop={8}>
-                  <FontAwesome
-                    name={isPlaying ? 'pause' : 'play'}
-                    size={12}
-                    color={colors.white}
-                  />
-                </Pressable>
-              </View>
-            </LinearGradient>
-          ) : null}
-        </Pressable>
-      </View>
+            <View style={styles.bottomBar}>
+              <Text style={styles.time}>{formatTime(positionMs)}</Text>
+              <Pressable
+                style={styles.track}
+                onLayout={(e) => {
+                  trackWidth.current = e.nativeEvent.layout.width;
+                }}
+                onPress={onTrackPress}
+                onPressIn={() => setSeeking(true)}
+                onPressOut={() => setSeeking(false)}
+                accessibilityLabel="Seek">
+                <View style={styles.trackBg} />
+                <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
+                <View style={[styles.thumb, { left: `${Math.min(100, progress * 100)}%` }]} />
+              </Pressable>
+              <Text style={styles.time}>{formatTime(durationMs)}</Text>
+            </View>
+          </LinearGradient>
+        ) : null}
+      </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  shell: {
-    backgroundColor: '#050B18',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  frame: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: radii.xl,
-    overflow: 'hidden',
-    backgroundColor: '#000',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#000',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-  },
-  eyebrow: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  title: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(27,94,245,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  spinnerWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  time: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    minWidth: 34,
-  },
-  track: {
-    flex: 1,
-    height: 24,
-    justifyContent: 'center',
-  },
-  trackBg: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  trackFill: {
-    position: 'absolute',
-    left: 0,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  thumb: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginLeft: -6,
-    backgroundColor: colors.white,
-    top: 6,
-  },
-  smallPlay: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    frame: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+      borderRadius: radii.xl,
+      overflow: 'hidden',
+      backgroundColor: '#000',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.line,
+    },
+    video: { width: '100%', height: '100%', backgroundColor: '#000' },
+    topBar: { flexDirection: 'row', justifyContent: 'flex-end', padding: spacing.md },
+    iconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    playBtn: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: 'rgba(27,94,245,0.92)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
+    spinnerWrap: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bottomBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+    time: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: 34 },
+    track: { flex: 1, height: 28, justifyContent: 'center' },
+    trackBg: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
+    trackFill: { position: 'absolute', left: 0, height: 4, borderRadius: 2, backgroundColor: t.brand500 },
+    thumb: { position: 'absolute', width: 12, height: 12, borderRadius: 6, marginLeft: -6, backgroundColor: MEDIA_FG, top: 8 },
+  })
+);

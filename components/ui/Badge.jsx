@@ -1,14 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '@/constants/theme';
+import { colors, radii, spacing, t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export function Badge({ label, tone = 'primary', style }) {
   const tones = {
-    primary: { bg: '#1B5EF514', text: colors.primary },
-    success: { bg: '#1EBE571A', text: colors.success },
-    warning: { bg: '#F69C081A', text: colors.warning },
+    primary: { bg: t.brandSoft, text: colors.primary },
+    success: { bg: t.upSoft, text: colors.success },
+    warning: { bg: t.warnSoft, text: colors.warning },
     muted: { bg: colors.border, text: colors.muted },
-    accent: { bg: '#00B8FF1A', text: colors.accent },
+    accent: { bg: t.brandSoft, text: colors.accent },
   };
   const t = tones[tone] || tones.primary;
 
@@ -19,15 +20,17 @@ export function Badge({ label, tone = 'primary', style }) {
   );
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
-    alignSelf: 'flex-start',
-  },
-  text: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    badge: {
+      paddingHorizontal: spacing.sm + 2,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+      alignSelf: 'flex-start',
+    },
+    text: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+  })
+);

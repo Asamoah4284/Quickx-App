@@ -9,6 +9,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, spacing } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { haptics } from '@/utils/haptics';
+import { themed } from '@/utils/themedStyles';
 
 export function EmailAuth({ top }) {
   const { loginWithEmail } = useAppState();
@@ -90,12 +91,14 @@ export function EmailAuth({ top }) {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md, fontSize: 14 },
-  label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  eyeBtn: { paddingLeft: spacing.sm },
-  forgot: { color: colors.primary, fontWeight: '700', fontSize: 14, alignSelf: 'flex-end' },
-  footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
-  footerText: { color: colors.muted, fontSize: 14 },
-  link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md, fontSize: 14 },
+    label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
+    eyeBtn: { paddingLeft: spacing.sm },
+    forgot: { color: colors.primary, fontWeight: '700', fontSize: 14, alignSelf: 'flex-end' },
+    footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
+    footerText: { color: colors.muted, fontSize: 14 },
+    link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  })
+);

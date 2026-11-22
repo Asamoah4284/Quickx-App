@@ -1,170 +1,178 @@
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import Feather from '@expo/vector-icons/Feather';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useFonts } from 'expo-font';
-import { ThemeProvider, DefaultTheme, Stack, useRouter, useSegments } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, router, usePathname, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
-import { BackHandler, StyleSheet, View } from 'react-native';
-
+import { ActionSheetHost } from '@/components/ui/ActionSheet';
+import { LogoMark } from '@/components/ui/Logo';
+import { t } from '@/constants/theme';
 import { AppStateProvider, useAppState } from '@/context/AppState';
-import { colors } from '@/constants/theme';
+import { ThemeProvider, loadThemeChoice, takeReopen } from '@/context/ThemeContext';
+import { appRouteFor } from '@/utils/pushNotifications';
+import { themed } from '@/utils/themedStyles';
 
 export { ErrorBoundary } from 'expo-router';
 
-export const unstable_settings = {
-  initialRouteName: '(tabs)',
-};
+export const unstable_settings = { initialRouteName: '(tabs)' };
 
 SplashScreen.preventAutoHideAsync();
 
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.primary,
-    background: colors.surface,
-    card: colors.card,
-    text: colors.text,
-    border: colors.border,
-    notification: colors.accent,
-  },
+/** Navigation colours for the current theme. */
+const navTheme = () => {
+  const base = t.scheme === 'light' ? DefaultTheme : DarkTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: t.brand400,
+      background: t.bg,
+      card: t.bgRaised,
+      text: t.fg,
+      border: t.line,
+      notification: t.down,
+    },
+  };
 };
 
-function AuthRedirect() {
-  const { user, authReady } = useAppState();
+/** Opens the sign-in sheet when something calls requireSignIn(). */
+function SignInWatcher() {
+  const { signInPrompt } = useAppState();
   const segments = useSegments();
-  const router = useRouter();
-
+  const inAuth = segments[0] === '(auth)';
   useEffect(() => {
-    if (!authReady) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
-  }, [user, authReady, segments, router]);
+    if (signInPrompt && !inAuth) router.push('/(auth)/login');
+  }, [signInPrompt, inAuth]);
+  return null;
+}
 
+/** Tapping a notification opens the matching screen. */
+function NotificationRouter() {
+  const last = Notifications.useLastNotificationResponse();
+  const handled = useRef(null);
   useEffect(() => {
-    if (!user) return undefined;
-    const onBack = () => {
-      if (segments[0] === '(tabs)' || segments[0] === '(auth)') return true;
-      return false;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => sub.remove();
-  }, [user, segments]);
+    if (!last || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const id = last.notification.request.identifier;
+    if (handled.current === id) return;
+    handled.current = id;
+    const url = last.notification.request.content.data?.url;
+    router.push(appRouteFor(url));
+  }, [last]);
+  return null;
+}
 
+const stack = () => ({
+  headerShown: false,
+  contentStyle: { backgroundColor: t.bg },
+  animation: 'slide_from_right',
+  gestureEnabled: true,
+  fullScreenGestureEnabled: false,
+});
+
+/** After a theme change the screens remount; this puts the person back where they were. */
+function ReopenAfterTheme() {
+  const pathname = usePathname();
+  useEffect(() => {
+    const to = takeReopen();
+    if (to && pathname !== to) router.push(to);
+    // Only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return null;
 }
 
 function RootNav() {
   const { authReady } = useAppState();
-
   return (
-    <View style={{ flex: 1 }}>
-      <AuthRedirect />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.card },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          headerBackTitle: 'Back',
-          contentStyle: { backgroundColor: colors.surface },
-          animation: 'slide_from_right',
-          animationDuration: 380,
-          gestureEnabled: true,
-          // Edge swipe only — full-screen gesture fights vertical scrolling (Learning Area, feeds, etc.)
-          fullScreenGestureEnabled: false,
-          gestureDirection: 'horizontal',
-        }}>
-        <Stack.Screen
-          name="(auth)"
-          options={{ headerShown: false, animation: 'fade', gestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-            animation: 'none',
-            gestureEnabled: false,
-            fullScreenGestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="learn/[courseId]/index"
-          options={{ title: 'Learning area', fullScreenGestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="learn/[courseId]/lesson/[lessonId]"
-          options={{ title: 'Lesson', fullScreenGestureEnabled: false }}
-        />
-        <Stack.Screen name="tutors/index" options={{ title: 'Find a Tutor' }} />
-        <Stack.Screen name="wallet/index" options={{ title: 'QuickX Wallet' }} />
-        <Stack.Screen
-          name="notifications"
-          options={{
-            title: 'Notifications',
-            presentation: 'card',
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen name="live" options={{ title: 'Live Classes' }} />
-        <Stack.Screen name="events/index" options={{ headerShown: false }} />
-        <Stack.Screen name="events/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="events/my-tickets" options={{ title: 'My tickets' }} />
-        <Stack.Screen name="ptrading/index" options={{ headerShown: false }} />
-        <Stack.Screen name="ptrading/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="ptrading/create" options={{ title: 'Launch a pie', presentation: 'modal' }} />
-        <Stack.Screen name="downloads/index" options={{ title: 'Downloads' }} />
-        <Stack.Screen name="downloads/play" options={{ title: 'Offline lesson', headerShown: false }} />
-        <Stack.Screen name="certificates/index" options={{ title: 'My certificates' }} />
-        <Stack.Screen name="certificates/[code]" options={{ title: 'Certificate' }} />
-        <Stack.Screen name="bookings/index" options={{ title: 'My Bookings' }} />
-        <Stack.Screen name="my-courses/index" options={{ title: 'My courses' }} />
-        <Stack.Screen name="saved-courses/index" options={{ title: 'Saved courses' }} />
-        <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
-        <Stack.Screen name="referrals/index" options={{ title: 'Referrals' }} />
-        <Stack.Screen name="programs/index" options={{ title: 'Creator onboarding' }} />
-        <Stack.Screen name="programs/[slug]" options={{ title: 'Program' }} />
-        <Stack.Screen name="book/[id]" options={{ title: 'Book' }} />
-        <Stack.Screen name="book/[id]/read" options={{ title: 'Read' }} />
-        <Stack.Screen name="book/cart" options={{ title: 'Cart' }} />
-        <Stack.Screen name="creator" options={{ headerShown: false }} />
-        <Stack.Screen name="communities/index" options={{ title: 'Communities' }} />
-        <Stack.Screen name="community/[tutorId]/index" options={{ title: 'Community' }} />
-        <Stack.Screen name="subscribe/[tutorId]" options={{ title: 'Subscribe' }} />
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <SignInWatcher />
+      {Platform.OS !== 'web' ? <NotificationRouter /> : null}
+      <ReopenAfterTheme />
+      <Stack screenOptions={stack()}>
+        <Stack.Screen name="(tabs)" options={{ animation: 'none', gestureEnabled: false }} />
+        <Stack.Screen name="(auth)" options={{ presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true }} />
+        <Stack.Screen name="learn/[courseId]/index" />
+        <Stack.Screen name="learn/[courseId]/lesson/[lessonId]" />
+        <Stack.Screen name="downloads/index" />
+        <Stack.Screen name="downloads/play" />
+        <Stack.Screen name="book/[id]/read" />
+        <Stack.Screen name="events/my-tickets" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="settings/index" />
+        <Stack.Screen name="delete-account" />
+        <Stack.Screen name="checkout/[key]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="owner/signal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="payment-done" options={{ animation: 'none' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      {!authReady ? <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.navy }} /> : null}
+      <ActionSheetHost />
+      {!authReady ? (
+        <View style={styles.boot}>
+          <LogoMark size={64} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    ...Feather.font,
     ...FontAwesome.font,
+    ...Ionicons.font,
   });
+  const [themeChoice, setThemeChoice] = useState(null);
+
+  useEffect(() => {
+    loadThemeChoice().then(setThemeChoice);
+  }, []);
 
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
+  const ready = loaded && themeChoice;
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (!loaded) return null;
+  if (!ready) return null;
 
   return (
     <AppStateProvider>
-      <ThemeProvider value={navTheme}>
-        <StatusBar style="dark" />
-        <RootNav />
+      <ThemeProvider initialChoice={themeChoice}>
+        {(scheme) => (
+          <NavThemeProvider value={navTheme()}>
+            <StatusBar style={t.statusBar} />
+            <RootNav key={scheme} />
+          </NavThemeProvider>
+        )}
       </ThemeProvider>
     </AppStateProvider>
   );
 }
+
+const styles = themed(() =>
+  StyleSheet.create({
+    boot: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' },
+  })
+);

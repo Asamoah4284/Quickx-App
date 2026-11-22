@@ -1,160 +1,96 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii } from '@/constants/theme';
+import { Txt } from '@/components/ui/kit';
+import { t } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { themed } from '@/utils/themedStyles';
 
-const TAB_ORDER = ['index', 'mentorship', 'learn', 'books', 'profile'];
+export const TABS = [
+  { name: 'index', label: 'Home', icon: 'home' },
+  { name: 'courses', label: 'Courses', icon: 'play-circle' },
+  { name: 'signals', label: 'Signals', icon: 'activity' },
+  { name: 'community', label: 'Community', icon: 'users' },
+  { name: 'account', label: 'Account', icon: 'user' },
+];
 
-const ICONS = {
-  index: { set: 'fa', name: 'home' },
-  mentorship: { set: 'fa', name: 'handshake-o' },
-  learn: { set: 'fa', name: 'graduation-cap' },
-  books: { set: 'ion', name: 'book-outline', activeName: 'book' },
-  profile: { set: 'fa', name: 'user' },
-};
-
-function TabIcon({ tabKey, color, focused, size = 22 }) {
-  const config = ICONS[tabKey] || ICONS.index;
-  if (config.set === 'ion') {
-    const name = focused && config.activeName ? config.activeName : config.name;
-    return <Ionicons name={name} size={size} color={color} />;
-  }
-  return <FontAwesome name={config.name} size={size} color={color} />;
-}
-
-function routeKey(name) {
-  return String(name).split('/')[0];
-}
-
-export function FloatingTabBar({ state, descriptors, navigation }) {
+/** A floating bar with a pill that slides to the open tab. */
+export function FloatingTabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 8);
+  const [width, setWidth] = useState(0);
+  const slot = width / TABS.length;
+  const activeName = state.routes[state.index]?.name;
+  const activeIndex = Math.max(0, TABS.findIndex((tab) => tab.name === activeName));
+  const x = useSharedValue(0);
 
-  const visibleRoutes = TAB_ORDER.map((key) =>
-    state.routes.find((route) => routeKey(route.name) === key)
-  ).filter(Boolean);
+  useEffect(() => {
+    if (slot) x.value = withSpring(activeIndex * slot, { damping: 18, stiffness: 220, mass: 0.7 });
+  }, [activeIndex, slot, x]);
+
+  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: slot }));
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
-      {visibleRoutes.map((route) => {
-        const { options } = descriptors[route.key];
-        const key = routeKey(route.name);
-        const label =
-          typeof options.tabBarLabel === 'string'
-            ? options.tabBarLabel
-            : options.title || key;
-
-        const routeIndex = state.routes.findIndex((r) => r.key === route.key);
-        const isFocused = state.index === routeIndex;
-        const isCenter = key === 'learn';
-        const color = isFocused ? colors.navyMid : colors.tabInactive;
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            haptics.select();
-            navigation.navigate(route.name);
-          }
-        };
-
-        if (isCenter) {
+    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <View style={styles.bar} onLayout={(e) => setWidth(e.nativeEvent.layout.width - 12)}>
+        {slot ? (
+          <Animated.View style={[styles.pillSlot, pill]}>
+            <View style={styles.pill} />
+          </Animated.View>
+        ) : null}
+        {TABS.map((tab) => {
+          const route = state.routes.find((r) => r.name === tab.name);
+          if (!route) return null;
+          const focused = activeName === tab.name;
+          const color = focused ? t.fg : t.fgSubtle;
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) {
+              haptics.select();
+              navigation.navigate(route.name);
+            }
+          };
           return (
             <Pressable
-              key={route.key}
+              key={tab.name}
               onPress={onPress}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              style={styles.centerSlot}>
-              <View style={[styles.centerBtn, isFocused && styles.centerBtnActive]}>
-                <FontAwesome name="graduation-cap" size={22} color={colors.white} />
-              </View>
-              <Text style={[styles.centerLabel, isFocused && styles.centerLabelActive]}>
-                {label}
-              </Text>
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={focused ? { selected: true } : {}}
+              style={styles.tab}>
+              <Feather name={tab.icon} size={20} color={focused ? t.brand300 : color} />
+              <Txt size={10.5} weight={focused ? 'bold' : 'semibold'} color={color} numberOfLines={1}>
+                {tab.label}
+              </Txt>
             </Pressable>
           );
-        }
-
-        return (
-          <Pressable
-            key={route.key}
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            style={styles.tab}>
-            <TabIcon tabKey={key} color={color} focused={isFocused} />
-            <Text style={[styles.label, { color }]} numberOfLines={1}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+        })}
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.card,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingTop: 10,
-    minHeight: 62,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    elevation: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingBottom: 2,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  centerSlot: {
-    flex: 1.1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: -22,
-    gap: 4,
-  },
-  centerBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.full,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.card,
-  },
-  centerBtnActive: {
-    backgroundColor: colors.goldDark,
-  },
-  centerLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.tabInactive,
-  },
-  centerLabelActive: {
-    color: colors.navyMid,
-    fontWeight: '700',
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 14 },
+    bar: {
+      flexDirection: 'row',
+      padding: 6,
+      borderRadius: 26,
+      backgroundColor: t.tabBar,
+      borderWidth: 1,
+      borderColor: t.lineStrong,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      elevation: 16,
+    },
+    pillSlot: { position: 'absolute', top: 6, bottom: 6, left: 6, paddingHorizontal: 2 },
+    pill: { flex: 1, borderRadius: 20, backgroundColor: t.brandSoft, borderWidth: 1, borderColor: 'rgba(91,143,255,0.35)' },
+    tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 8 },
+  })
+);

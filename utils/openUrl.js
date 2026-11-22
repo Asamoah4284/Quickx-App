@@ -1,6 +1,6 @@
 import { Alert, Linking } from 'react-native';
 
-/** True only for navigable http(s) / mailto / tel links — not plain labels like "In Person". */
+/** True only for navigable http(s) / mailto / tel links, not plain labels like "In Person". */
 export function isOpenableUrl(value) {
   const text = String(value || '').trim();
   if (!text) return false;

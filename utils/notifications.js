@@ -16,6 +16,19 @@ function formatRelativeTime(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+/** Same rules as the server's notificationDeepLink, so a tap in the list opens the same place as a push. */
+function webPathFor(item) {
+  if (item.type === 'signal') return '/signals';
+  if (item.type === 'withdrawal') return '/account#wallet';
+  if (item.entityType === 'booking') return '/mentorship';
+  if (item.entityType === 'conversation') return '/community?tab=messages';
+  if (['question', 'answer'].includes(item.entityType)) return '/community?tab=questions';
+  if (item.entityType === 'resource') return '/community?tab=resources';
+  if (item.entityType === 'live_session') return '/community?tab=live';
+  if (item.tutorId) return '/community';
+  return '';
+}
+
 export function mapNotification(item) {
   return {
     id: String(item._id || item.id),

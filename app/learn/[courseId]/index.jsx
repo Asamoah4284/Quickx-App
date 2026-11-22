@@ -1,27 +1,18 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Badge } from '@/components/ui/Badge';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { Screen } from '@/components/ui/Screen';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { LessonRow } from '@/components/learn/LessonRow';
+import { Button, Card, IconBox, Loading, ProgressBar, Row, Txt } from '@/components/ui/kit';
+import { Page } from '@/components/ui/Page';
+import { layout, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import {
-  fetchCourseFull,
-  fetchCoursePreview,
-  flattenCourseLessons,
-} from '@/utils/catalog';
+import { fetchCourseFull, fetchCoursePreview, flattenCourseLessons } from '@/utils/catalog';
 import { getCachedCourseFull } from '@/utils/courseCache';
+import { themed } from '@/utils/themedStyles';
 
+/** The course you are taking: progress, Continue, and every lesson grouped by module. */
 export default function LearningAreaScreen() {
   const { courseId } = useLocalSearchParams();
   const router = useRouter();
@@ -92,151 +83,86 @@ export default function LearningAreaScreen() {
 
   if (loading && !course) {
     return (
-      <Screen>
-        <Stack.Screen options={{ title: 'My course' }} />
-        <ActivityIndicator color={colors.primary} />
-      </Screen>
+      <Page back title="My course">
+        <Loading label="Opening your course" />
+      </Page>
     );
   }
 
   if (denied || !course) {
     return (
-      <Screen>
-        <Stack.Screen options={{ title: 'My course' }} />
-        <Text style={typography.h3}>You don’t have access yet</Text>
-        <Text style={[typography.caption, { marginTop: spacing.sm, lineHeight: 20 }]}>
-          Buy this course to unlock the full learning area and watch lessons.
-        </Text>
-        <PrimaryButton
-          label="View course"
-          onPress={() => router.replace(`/course/${courseId}`)}
-          style={{ marginTop: spacing.lg }}
-        />
-      </Screen>
+      <Page back title="My course">
+        <Card style={{ gap: 12 }}>
+          <IconBox name="lock" tone="warn" />
+          <Txt size={17} weight="bold">
+            You do not have access yet
+          </Txt>
+          <Txt size={14} color={t.fgMuted} style={{ lineHeight: 21 }}>
+            Get Courses access to watch every lesson in this course.
+          </Txt>
+          <Button label="See how to get access" onPress={() => router.replace(`/course/${courseId}`)} />
+        </Card>
+      </Page>
     );
   }
 
+  let number = 0;
   return (
-    <Screen>
-      <Stack.Screen options={{ title: 'Learning area' }} />
-      {course.thumbnail ? (
-        <Image source={{ uri: course.thumbnail }} style={styles.cover} />
-      ) : null}
-      <Text style={typography.h2}>{course.title}</Text>
-      <Text style={[typography.caption, { marginTop: 4 }]}>
-        {course.tutorName ? `${course.tutorName} · ` : ''}
-        Learning area
-      </Text>
+    <Page back eyebrow="My course" title={course.title} subtitle={course.tutorName ? `With ${course.tutorName}` : undefined}>
+      {course.thumbnail ? <Image source={{ uri: course.thumbnail }} style={styles.cover} contentFit="cover" transition={150} /> : null}
 
-      <View style={styles.progressCard}>
-        <Text style={styles.progressLabel}>Your progress · {pct}%</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.barFill, { width: `${Math.min(100, pct)}%` }]} />
-        </View>
-        <Text style={typography.caption}>
-          {completed}/{lessons.length} lessons complete
-        </Text>
-      </View>
+      <Card style={{ marginTop: course.thumbnail ? layout.section : 0 }}>
+        <Row justify="space-between">
+          <Txt size={15} weight="bold">
+            Your progress
+          </Txt>
+          <Txt size={15} weight="bold" color={t.up} tabular>
+            {pct}%
+          </Txt>
+        </Row>
+        <ProgressBar value={pct / 100} tone="up" height={8} style={{ marginTop: 12 }} />
+        <Txt size={13} color={t.fgMuted} style={{ marginTop: 10 }} tabular>
+          {completed} of {lessons.length} lessons complete
+        </Txt>
+        {resumeId ? (
+          <Button
+            label={completed ? 'Continue watching' : 'Start the first lesson'}
+            icon="play"
+            onPress={() => router.push(`/learn/${course.id}/lesson/${resumeId}`)}
+            style={{ marginTop: 16 }}
+          />
+        ) : null}
+      </Card>
 
-      {resumeId ? (
-        <PrimaryButton
-          label="Continue watching"
-          onPress={() => router.push(`/learn/${course.id}/lesson/${resumeId}`)}
-          style={{ marginBottom: spacing.lg }}
-        />
-      ) : null}
-
-      {pct >= 100 && course.hasCertificate ? (
-        <Pressable style={styles.cert} onPress={() => router.push('/certificates')} accessibilityRole="button">
-          <FontAwesome name="certificate" size={22} color={colors.warning} />
-          <Text style={[styles.certText, { flex: 1 }]}>Certificate unlocked — view & share</Text>
-          <FontAwesome name="chevron-right" size={12} color={colors.warning} />
-        </Pressable>
-      ) : null}
-
-      <Text style={[typography.h3, { marginBottom: spacing.md }]}>Curriculum</Text>
       {course.curriculum.map((mod) => (
-        <View key={mod.id} style={styles.module}>
-          <Text style={styles.moduleTitle}>{mod.title}</Text>
-          {mod.lessons.map((lesson) => {
-            const done = completedIds.has(lesson.id);
-            return (
-              <Pressable
-                key={lesson.id}
-                style={styles.lesson}
-                onPress={() => router.push(`/learn/${course.id}/lesson/${lesson.id}`)}>
-                <FontAwesome
-                  name={done ? 'check-circle' : lesson.type === 'video' ? 'play-circle' : 'circle-o'}
-                  size={18}
-                  color={done ? colors.success : colors.primary}
+        <View key={mod.id} style={{ marginTop: layout.section }}>
+          <Txt size={17} weight="bold" style={{ marginBottom: 12 }}>
+            {mod.title}
+          </Txt>
+          <Card padded={false}>
+            {mod.lessons.map((lesson, i) => {
+              number += 1;
+              return (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  number={number}
+                  done={completedIds.has(lesson.id)}
+                  current={lesson.id === resumeId && !completedIds.has(lesson.id)}
+                  last={i === mod.lessons.length - 1}
+                  onPress={() => router.push(`/learn/${course.id}/lesson/${lesson.id}`)}
                 />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                  <Badge
-                    label={lesson.type}
-                    tone={lesson.type === 'quiz' ? 'warning' : 'muted'}
-                    style={{ marginTop: 4 }}
-                  />
-                </View>
-                <FontAwesome name="chevron-right" size={12} color={colors.muted} />
-              </Pressable>
-            );
-          })}
+              );
+            })}
+          </Card>
         </View>
       ))}
-    </Screen>
+    </Page>
   );
 }
 
-const styles = StyleSheet.create({
-  cover: {
-    width: '100%',
-    height: 160,
-    borderRadius: radii.lg,
-    marginBottom: spacing.md,
-    backgroundColor: colors.border,
-  },
-  progressCard: {
-    marginVertical: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  progressLabel: { fontWeight: '700', color: colors.text },
-  barTrack: {
-    height: 10,
-    backgroundColor: colors.border,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-  },
-  barFill: { height: '100%', backgroundColor: colors.primary },
-  cert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: '#F69C081A',
-    padding: spacing.md,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-  },
-  certText: { flex: 1, fontWeight: '600', color: colors.text },
-  module: {
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  moduleTitle: { fontWeight: '700', marginBottom: spacing.sm, color: colors.text },
-  lesson: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  lessonTitle: { color: colors.text, fontWeight: '600' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, backgroundColor: t.ink700 },
+  })
+);

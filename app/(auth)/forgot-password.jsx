@@ -7,6 +7,7 @@ import { AuthScreen } from '@/components/ui/AuthScreen';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, spacing } from '@/constants/theme';
 import { requestPasswordReset } from '@/utils/auth';
+import { themed } from '@/utils/themedStyles';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -64,9 +65,11 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md },
-  success: { color: colors.success, lineHeight: 20, marginBottom: spacing.lg, fontWeight: '600' },
-  label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  link: { color: colors.primary, fontWeight: '700', marginTop: spacing.xl, textAlign: 'center' },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md },
+    success: { color: colors.success, lineHeight: 20, marginBottom: spacing.lg, fontWeight: '600' },
+    label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
+    link: { color: colors.primary, fontWeight: '700', marginTop: spacing.xl, textAlign: 'center' },
+  })
+);

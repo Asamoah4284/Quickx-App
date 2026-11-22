@@ -7,11 +7,12 @@ import { AuthField } from '@/components/ui/AuthField';
 import { AuthScreen } from '@/components/ui/AuthScreen';
 import { OtpInput } from '@/components/ui/OtpInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { colors, radii, spacing } from '@/constants/theme';
+import { colors, radii, spacing, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { isStrongPassword } from '@/utils/auth';
 import { haptics } from '@/utils/haptics';
 import { formatIntlPhone, isValidGhPhone, normalizeGhPhone } from '@/utils/phone';
+import { themed } from '@/utils/themedStyles';
 
 const PASSWORD_RULES = [
   { id: 'len', label: '8+ characters', test: (p) => p.length >= 8 },
@@ -155,7 +156,7 @@ export function EmailSignup({ top }) {
     <AuthScreen
       title="Create account"
       top={top}
-      subtitle="Sign up with email and a password — the same account works on the QuickX website.">
+      subtitle="Sign up with email and a password. The same account works on the QuickX website.">
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.label}>Full name</Text>
@@ -239,37 +240,39 @@ export function EmailSignup({ top }) {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md, fontSize: 14 },
-  label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
-  eye: { paddingLeft: spacing.sm },
-  rules: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -4, marginBottom: spacing.lg },
-  rule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-    backgroundColor: colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  ruleOk: { backgroundColor: '#EAF8EF', borderColor: '#BDE8CB' },
-  ruleText: { fontSize: 11, fontWeight: '600', color: colors.muted },
-  ruleTextOk: { color: '#13803C' },
-  footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
-  footerText: { color: colors.muted, fontSize: 14 },
-  link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-  muted: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  hintCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7E0',
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  hintText: { flex: 1, marginLeft: 10, color: colors.navy, fontWeight: '600', fontSize: 13 },
-  resendRow: { alignItems: 'center', marginTop: spacing.xl },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    error: { color: colors.danger, fontWeight: '600', marginBottom: spacing.md, fontSize: 14 },
+    label: { color: colors.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm },
+    eye: { paddingLeft: spacing.sm },
+    rules: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -4, marginBottom: spacing.lg },
+    rule: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: radii.full,
+      backgroundColor: colors.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    ruleOk: { backgroundColor: 'rgba(47,208,140,0.12)', borderColor: 'rgba(47,208,140,0.3)' },
+    ruleText: { fontSize: 11, fontWeight: '600', color: colors.muted },
+    ruleTextOk: { color: t.up },
+    footer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: spacing.xl },
+    footerText: { color: colors.muted, fontSize: 14 },
+    link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+    muted: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+    hintCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(245,184,74,0.12)',
+      borderRadius: radii.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    hintText: { flex: 1, marginLeft: 10, color: colors.text, fontWeight: '600', fontSize: 13 },
+    resendRow: { alignItems: 'center', marginTop: spacing.xl },
+  })
+);

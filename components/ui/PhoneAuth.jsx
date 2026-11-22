@@ -16,6 +16,7 @@ import {
   isValidGhPhone,
   normalizeGhPhone,
 } from '@/utils/phone';
+import { themed } from '@/utils/themedStyles';
 
 const COPY = {
   login: {
@@ -238,111 +239,113 @@ export function PhoneAuth({ mode, top }) {
   );
 }
 
-const styles = StyleSheet.create({
-  error: {
-    color: colors.danger,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-    fontSize: 14,
-  },
-  label: {
-    color: colors.text,
-    fontWeight: '700',
-    fontSize: 13,
-    marginBottom: spacing.sm,
-  },
-  phoneCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    minHeight: 62,
-    paddingHorizontal: spacing.md,
-  },
-  phoneCardError: {
-    borderColor: colors.danger,
-  },
-  prefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: spacing.sm,
-  },
-  flag: {
-    fontSize: 22,
-    marginRight: 8,
-  },
-  dial: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  divider: {
-    width: 1,
-    height: 28,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.sm,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: 0.4,
-    paddingVertical: spacing.md,
-  },
-  hintLine: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-    color: colors.muted,
-    fontSize: 13,
-  },
-  muted: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  legal: {
-    marginTop: spacing.lg,
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: spacing.xl,
-  },
-  footerText: {
-    color: colors.muted,
-    fontSize: 14,
-  },
-  link: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  hintCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7E0',
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  hintText: {
-    flex: 1,
-    marginLeft: 10,
-    color: colors.navy,
-    fontWeight: '600',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  resendRow: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    error: {
+      color: colors.danger,
+      fontWeight: '600',
+      marginBottom: spacing.md,
+      fontSize: 14,
+    },
+    label: {
+      color: colors.text,
+      fontWeight: '700',
+      fontSize: 13,
+      marginBottom: spacing.sm,
+    },
+    phoneCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      minHeight: 62,
+      paddingHorizontal: spacing.md,
+    },
+    phoneCardError: {
+      borderColor: colors.danger,
+    },
+    prefix: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingRight: spacing.sm,
+    },
+    flag: {
+      fontSize: 22,
+      marginRight: 8,
+    },
+    dial: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    divider: {
+      width: 1,
+      height: 28,
+      backgroundColor: colors.border,
+      marginHorizontal: spacing.sm,
+    },
+    phoneInput: {
+      flex: 1,
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      letterSpacing: 0.4,
+      paddingVertical: spacing.md,
+    },
+    hintLine: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+      color: colors.muted,
+      fontSize: 13,
+    },
+    muted: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    legal: {
+      marginTop: spacing.lg,
+      color: colors.muted,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: 'center',
+    },
+    footer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      marginTop: spacing.xl,
+    },
+    footerText: {
+      color: colors.muted,
+      fontSize: 14,
+    },
+    link: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    hintCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(245,184,74,0.12)',
+      borderRadius: radii.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    hintText: {
+      flex: 1,
+      marginLeft: 10,
+      color: colors.text,
+      fontWeight: '600',
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    resendRow: {
+      alignItems: 'center',
+      marginTop: spacing.xl,
+    },
+  })
+);

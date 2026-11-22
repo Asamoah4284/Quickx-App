@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, radii, spacing } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export function PrimaryButton({
   label,
@@ -46,33 +47,35 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  secondary: {
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-  },
-  danger: {
-    backgroundColor: colors.danger,
-  },
-  off: { opacity: 0.45 },
-  label: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    btn: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.md,
+      paddingVertical: spacing.md + 2,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 50,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    secondary: {
+      backgroundColor: colors.card,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+    },
+    danger: {
+      backgroundColor: colors.danger,
+    },
+    off: { opacity: 0.45 },
+    label: {
+      color: colors.white,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  })
+);

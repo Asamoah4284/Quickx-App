@@ -8,7 +8,7 @@ function run(fn) {
   try {
     fn()?.catch?.(() => {});
   } catch {
-    // Haptics unavailable on this device — ignore.
+    // Haptics unavailable on this device, so skip it.
   }
 }
 

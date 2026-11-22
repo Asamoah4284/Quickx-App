@@ -5,6 +5,7 @@ import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors, radii, spacing, typography } from '@/constants/theme';
 import { formatPriceCedi } from '@/utils/format';
+import { themed } from '@/utils/themedStyles';
 
 const WHATSAPP_NUMBER = '233559037872';
 
@@ -51,7 +52,7 @@ export function HardcopyRequestModal({ book, visible, onClose, user }) {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text style={typography.h3}>Request hardcopy</Text>
-          <Text style={styles.hint}>Free delivery — we&apos;ll confirm on WhatsApp.</Text>
+          <Text style={styles.hint}>Free delivery. We&apos;ll confirm on WhatsApp.</Text>
           <Text style={styles.bookTitle}>{book.title}</Text>
           <Text style={styles.price}>{formatPriceCedi(hardcopyAmount)}</Text>
           <TextInput
@@ -88,28 +89,30 @@ export function HardcopyRequestModal({ book, visible, onClose, user }) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  hint: { color: colors.muted, lineHeight: 18 },
-  bookTitle: { fontWeight: '800', color: colors.text, marginTop: spacing.sm },
-  price: { color: colors.primary, fontWeight: '800' },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    color: colors.text,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radii.lg,
+      padding: spacing.xl,
+      gap: spacing.sm,
+    },
+    hint: { color: colors.muted, lineHeight: 18 },
+    bookTitle: { fontWeight: '800', color: colors.text, marginTop: spacing.sm },
+    price: { color: colors.primary, fontWeight: '800' },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+      color: colors.text,
+    },
+  })
+);

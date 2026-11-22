@@ -161,6 +161,8 @@ export function mapCourse(raw, extras = {}) {
   };
 }
 
+export const BOOK_TYPE = { digital: 'E-book', physical: 'Hardcopy', bundle: 'Bundle' };
+
 export function mapBook(raw) {
   const reviews = Array.isArray(raw.reviews) ? raw.reviews : [];
   const quotes = Array.isArray(raw.testimonials) ? raw.testimonials : [];
@@ -285,67 +287,4 @@ export async function fetchPurchasedCourses(token, { force = false } = {}) {
   }));
   setCachedPurchasedCourses(list);
   return list;
-}
-
-export function mapTutor(raw) {
-  const expertise = Array.isArray(raw.expertise)
-    ? raw.expertise.filter(Boolean)
-    : Array.isArray(raw.teachingCategories)
-      ? raw.teachingCategories.filter(Boolean)
-      : [];
-  return {
-    id: String(raw.id || raw._id),
-    name: raw.name || raw.fullName || 'Tutor',
-    title: raw.title || raw.headline || 'QuickX Tutor',
-    bio: raw.bio || '',
-    expertise,
-    experience: raw.experience || (raw.experienceYears ? `${raw.experienceYears} years` : ''),
-    experienceYears: Number(raw.experienceYears || 0),
-    rating: Number(raw.rating || raw.stats?.avgRating || 0),
-    students: Number(raw.students || raw.stats?.learners || 0),
-    courseCount: Number(raw.courseCount || raw.stats?.courses || 0),
-    avatar: raw.avatar || raw.profilePicture || '',
-    category: raw.category || expertise[0] || '',
-    languages: raw.languages || [],
-    teachingCategories: raw.teachingCategories || [],
-    offersMentorship: Boolean(raw.offersMentorship),
-    subscriptionPricing: raw.subscriptionPricing || null,
-    courses: Array.isArray(raw.courses) ? raw.courses.map((c) => mapCourse(c)) : [],
-    services: Array.isArray(raw.services) ? raw.services : [],
-    reviews: Array.isArray(raw.reviews) ? raw.reviews : [],
-  };
-}
-
-export async function fetchTutors({ search, category } = {}) {
-  const params = new URLSearchParams();
-  if (search) params.set('search', search);
-  if (category && category !== 'all') params.set('category', category);
-  const query = params.toString();
-  const data = await api(`/users/tutors${query ? `?${query}` : ''}`);
-  return asList(data).map(mapTutor);
-}
-
-export async function fetchTutorProfile(id) {
-  const data = await api(`/users/public/${id}/instructor`);
-  const user = data.user || {};
-  const profile = data.tutorProfile || {};
-  const stats = data.stats || {};
-  return mapTutor({
-    id: user._id || id,
-    name: user.fullName,
-    title: profile.headline || user.creatorHeadline || 'QuickX Tutor',
-    bio: profile.bio || user.creatorBio || '',
-    expertise: [
-      ...(profile.teachingCategories || []),
-      ...(data.categories || []),
-    ],
-    teachingCategories: profile.teachingCategories || [],
-    avatar: user.avatar || user.profilePicture || '',
-    rating: stats.avgRating || 0,
-    students: stats.learners || 0,
-    courseCount: stats.courses || 0,
-    experience: '',
-    subscriptionPricing: profile.subscriptionPricing || null,
-    courses: data.courses || [],
-  });
 }

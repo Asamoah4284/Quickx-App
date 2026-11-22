@@ -1,36 +1,59 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Stack, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import Feather from '@expo/vector-icons/Feather';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  BackHandler,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LessonRow, lessonMeta } from '@/components/learn/LessonRow';
 import { LessonVideoPlayer } from '@/components/learn/LessonVideoPlayer';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { colors, radii, spacing, typography } from '@/constants/theme';
+import { Badge, Button, Card, IconBox, Loading, ProgressBar, Row, Txt } from '@/components/ui/kit';
+import { BackButton } from '@/components/ui/Page';
+import { layout, radii, t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
-import {
-  fetchCourseFull,
-  fetchCoursePreview,
-  flattenCourseLessons,
-  updateCourseProgress,
-} from '@/utils/catalog';
+import { fetchCourseFull, fetchCoursePreview, flattenCourseLessons, updateCourseProgress } from '@/utils/catalog';
 import { getCachedCourseFull } from '@/utils/courseCache';
 import { haptics } from '@/utils/haptics';
-import {
-  downloadLesson,
-  formatBytes,
-  getOfflineLesson,
-  offlineSupported,
-  removeOfflineLesson,
-} from '@/utils/offlineLessons';
+import { downloadLesson, formatBytes, getOfflineLesson, offlineSupported, removeOfflineLesson } from '@/utils/offlineLessons';
+import { themed } from '@/utils/themedStyles';
+
+/** Back button, course name and "Lesson 3 of 12", under the status bar. */
+function TopBar({ onBack, course, position }) {
+  return (
+    <View style={styles.bar}>
+      <BackButton onPress={onBack} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Txt size={14} weight="semibold" numberOfLines={1}>
+          {course || 'Lesson'}
+        </Txt>
+        {position ? (
+          <Txt size={12} color={t.fgSubtle} tabular>
+            {position}
+          </Txt>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** Shown in place of the video for quizzes, reading lessons and locked lessons. */
+function NoVideo({ lesson }) {
+  const [icon, text] = lesson.isLocked
+    ? ['lock', 'This lesson is locked. Get the course to watch it.']
+    : lesson.type === 'quiz'
+      ? ['help-circle', 'Quiz lesson. Mark it complete when you finish.']
+      : lesson.textContent
+        ? ['book-open', 'Reading lesson. The text is below.']
+        : ['film', 'There is no video for this lesson yet.'];
+  return (
+    <View style={styles.noVideo}>
+      <IconBox name={icon} size={52} tone={lesson.isLocked ? 'warn' : 'brand'} />
+      <Txt size={14} weight="semibold" center color={t.fgMuted} style={{ maxWidth: 260 }}>
+        {text}
+      </Txt>
+    </View>
+  );
+}
 
 export default function LessonScreen() {
   const { courseId, lessonId } = useLocalSearchParams();
@@ -67,14 +90,14 @@ export default function LessonScreen() {
       haptics.success();
     } catch (error) {
       haptics.error();
-      Alert.alert('Download unavailable', error.message || 'Requires Premium/Diamond or course purchase.');
+      Alert.alert('Download unavailable', error.message || 'Downloads need Courses access.');
     } finally {
       setDownloadPct(null);
     }
   };
 
   const onRemoveDownload = () =>
-    Alert.alert('Remove download?', 'You’ll need an internet connection to watch this lesson again.', [
+    Alert.alert('Remove download?', 'You will need internet to watch this lesson again.', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Remove',
@@ -86,25 +109,27 @@ export default function LessonScreen() {
       },
     ]);
 
+  // Lessons replace each other, so "back" always means the course's lesson list.
   const goToLearningArea = useCallback(() => {
     allowLeaveRef.current = true;
     router.replace(`/learn/${courseKey}`);
   }, [courseKey, router]);
 
   const goToLesson = useCallback(
-    (targetLessonId) => {
+    (target) => {
+      if (!target) return;
       allowLeaveRef.current = true;
-      router.replace(`/learn/${courseKey}/lesson/${targetLessonId}`);
+      setLastLesson(courseKey, target.id);
+      router.replace(`/learn/${courseKey}/lesson/${target.id}`);
     },
-    [courseKey, router]
+    [courseKey, router, setLastLesson]
   );
 
   useEffect(() => {
-    const onHardwareBack = () => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       goToLearningArea();
       return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    });
     return () => sub.remove();
   }, [goToLearningArea]);
 
@@ -128,14 +153,13 @@ export default function LessonScreen() {
     } else {
       setLoading(true);
     }
-
     try {
       if (token && token !== 'local') {
         try {
           setCourse(await fetchCourseFull(courseKey, token));
           return;
         } catch {
-          // fall through to preview for free lessons
+          // fall through to the preview for free lessons
         }
       }
       setCourse(await fetchCoursePreview(courseKey));
@@ -153,9 +177,16 @@ export default function LessonScreen() {
   const lessons = useMemo(() => flattenCourseLessons(course), [course]);
   const lesson = lessons.find((l) => l.id === String(lessonId));
   const idx = lessons.findIndex((l) => l.id === String(lessonId));
-  const done = enrolledCourses[courseKey]?.progress?.[String(lessonId)];
+  const progress = enrolledCourses[courseKey]?.progress || {};
+  const doneIds = new Set([
+    ...Object.keys(progress).filter((k) => progress[k]),
+    ...(course?.enrollment?.completedLessonIds || []).map(String),
+  ]);
+  const done = doneIds.has(String(lessonId));
+  const doneCount = lessons.filter((l) => doneIds.has(l.id)).length;
   const next = lessons[idx + 1];
   const prev = lessons[idx - 1];
+  const upNext = lessons.slice(idx + 1, idx + 4);
 
   useEffect(() => {
     if (course?.id && lesson?.id) setLastLesson(course.id, lesson.id);
@@ -163,343 +194,191 @@ export default function LessonScreen() {
 
   const onComplete = async () => {
     if (!course || !lesson) return;
+    haptics.success();
     markLessonComplete(course.id, lesson.id);
     if (token && token !== 'local' && isEnrolled(course.id)) {
-      const completed = Object.keys(enrolledCourses[course.id]?.progress || {}).length + (done ? 0 : 1);
-      const pct = Math.round((completed / Math.max(lessons.length, 1)) * 100);
+      const pct = Math.round(((doneCount + (done ? 0 : 1)) / Math.max(lessons.length, 1)) * 100);
       try {
-        await updateCourseProgress(course.id, token, {
-          progressPercent: pct,
-          completedLessonId: lesson.id,
-        });
+        await updateCourseProgress(course.id, token, { progressPercent: pct, completedLessonId: lesson.id });
       } catch {
-        // local progress still saved
+        // progress is still saved on the phone
       }
-    }
-    if (lesson.type === 'quiz') {
-      Alert.alert('Quiz complete', 'Nice work — keep going!');
     }
   };
 
-  if (loading && !course) {
-    return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: 'Lesson', headerShown: false }} />
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.loadingHint}>Opening lesson…</Text>
-      </View>
-    );
-  }
+  const frame = (content, bar = {}) => (
+    <View style={styles.root}>
+      <StatusBar style={t.statusBar} />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+        <TopBar onBack={goToLearningArea} {...bar} />
+        {content}
+      </SafeAreaView>
+    </View>
+  );
+
+  if (loading && !course) return frame(<Loading label="Opening lesson" />);
 
   if (!course || !lesson) {
-    return (
-      <View style={styles.center}>
-        <Stack.Screen options={{ title: 'Lesson', headerShown: false }} />
-        <Text style={styles.missing}>Lesson not found.</Text>
-      </View>
+    return frame(
+      <View style={styles.side}>
+        <Card style={{ alignItems: 'center', gap: 12 }}>
+          <IconBox name="alert-circle" tone="warn" />
+          <Txt size={16} weight="semibold" center>
+            We could not find this lesson
+          </Txt>
+          <Button label="Back to the course" variant="secondary" onPress={goToLearningArea} />
+        </Card>
+      </View>,
+      { course: course?.title }
     );
   }
 
   // A saved copy plays without internet; otherwise stream.
   const videoUri = offline?.uri || lesson.videoUrl;
-  const canPlay = Boolean(videoUri);
   const subtitle = [lesson.moduleTitle, lesson.sectionTitle].filter(Boolean).join(' · ');
+  const body = lesson.description || lesson.textContent;
+  const canDownload = offlineSupported && token && token !== 'local' && !lesson.isLocked && lesson.videoUrl;
 
-  return (
-    <View style={styles.root}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        bounces={false}>
-        {canPlay ? (
-          <LessonVideoPlayer
-            uri={videoUri}
-            posterUri={course.thumbnail}
-            title={lesson.title}
-            subtitle={course.title}
-            lessonIndex={idx + 1}
-            lessonTotal={lessons.length}
-          />
-        ) : (
-          <View style={styles.placeholderShell}>
-            <View style={styles.placeholder}>
-              <View style={styles.placeholderIcon}>
-                <FontAwesome
-                  name={lesson.isLocked ? 'lock' : lesson.type === 'quiz' ? 'question' : 'file-text-o'}
-                  size={22}
-                  color={colors.white}
-                />
-              </View>
-              <Text style={styles.placeholderText}>
-                {lesson.isLocked
-                  ? 'This lesson is locked. Buy the course to watch.'
-                  : lesson.type === 'quiz'
-                    ? 'Quiz lesson — mark complete when finished.'
-                    : lesson.textContent
-                      ? 'Reading lesson'
-                      : 'No video available for this lesson yet.'}
-              </Text>
-            </View>
-          </View>
-        )}
+  return frame(
+    <>
+      <View style={styles.side}>{videoUri && !lesson.isLocked ? <LessonVideoPlayer uri={videoUri} /> : <NoVideo lesson={lesson} />}</View>
 
-        <View style={styles.body}>
-          <Pressable style={styles.backRow} onPress={goToLearningArea}>
-            <FontAwesome name="chevron-left" size={12} color={colors.primary} />
-            <Text style={styles.backText}>Learning area</Text>
-          </Pressable>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Row gap={6} style={{ flexWrap: 'wrap' }}>
+          <Badge label={lessonMeta(lesson)} tone="brand" icon={lesson.type === 'video' ? 'play' : lesson.type === 'quiz' ? 'help-circle' : 'book-open'} />
+          {done ? <Badge label="Completed" tone="up" icon="check" /> : null}
+          {offline ? <Badge label="Saved offline" tone="neutral" icon="download" /> : null}
+        </Row>
 
-          <View style={styles.metaRow}>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{lesson.type}</Text>
-            </View>
-            {lesson.durationLabel || lesson.durationMins ? (
-              <Text style={styles.metaText}>
-                {lesson.durationLabel || `${lesson.durationMins} min`}
-              </Text>
-            ) : null}
-            {done ? (
-              <View style={[styles.pill, styles.pillDone]}>
-                <FontAwesome name="check" size={10} color={colors.success} />
-                <Text style={[styles.pillText, { color: colors.success }]}>Done</Text>
-              </View>
-            ) : null}
-          </View>
+        <Txt size={22} weight="bold" style={{ marginTop: 12, letterSpacing: -0.4, lineHeight: 28 }}>
+          {lesson.title}
+        </Txt>
+        {subtitle ? (
+          <Txt size={13} color={t.fgMuted} style={{ marginTop: 4 }}>
+            {subtitle}
+          </Txt>
+        ) : null}
 
-          <Text style={styles.lessonTitle}>{lesson.title}</Text>
-          {subtitle ? <Text style={styles.lessonSub}>{subtitle}</Text> : null}
-
-          {lesson.description || lesson.textContent ? (
-            <Text style={styles.copy}>{lesson.description || lesson.textContent}</Text>
-          ) : null}
-
-          <View style={styles.navRow}>
-            <Pressable
-              style={[styles.navChip, !prev && styles.navChipDisabled]}
-              disabled={!prev}
-              onPress={() => {
-                if (!prev) return;
-                setLastLesson(course.id, prev.id);
-                goToLesson(prev.id);
-              }}>
-              <FontAwesome name="step-backward" size={12} color={prev ? colors.navy : colors.muted} />
-              <Text style={[styles.navChipText, !prev && { color: colors.muted }]}>Previous</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.navChip, !next && styles.navChipDisabled]}
-              disabled={!next}
-              onPress={() => {
-                if (!next) return;
-                setLastLesson(course.id, next.id);
-                goToLesson(next.id);
-              }}>
-              <Text style={[styles.navChipText, !next && { color: colors.muted }]}>Next</Text>
-              <FontAwesome name="step-forward" size={12} color={next ? colors.navy : colors.muted} />
-            </Pressable>
-          </View>
-
-          <PrimaryButton
-            label={done ? 'Completed' : 'Mark complete'}
-            onPress={onComplete}
-            disabled={done || lesson.isLocked}
-            style={{ marginTop: spacing.lg }}
-          />
-
-          {offline ? (
-            <View style={styles.offlineCard}>
-              <FontAwesome name="check-circle" size={18} color={colors.success} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.offlineTitle}>Saved for offline</Text>
-                <Text style={styles.offlineMeta}>
-                  {offline.size ? `${formatBytes(offline.size)} · ` : ''}
-                  {offline.expiresAt
-                    ? `available until ${new Date(offline.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                    : 'plays without internet'}
-                </Text>
-              </View>
-              <Pressable onPress={onRemoveDownload} hitSlop={10} accessibilityLabel="Remove download">
-                <FontAwesome name="trash-o" size={18} color={colors.muted} />
-              </Pressable>
-            </View>
-          ) : offlineSupported && token && token !== 'local' && !lesson.isLocked && lesson.videoUrl ? (
-            downloadPct != null ? (
-              <View style={styles.offlineCard}>
-                <ActivityIndicator color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.offlineTitle}>Downloading… {Math.round(downloadPct * 100)}%</Text>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${Math.max(3, downloadPct * 100)}%` }]} />
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <PrimaryButton
-                label="Download for offline"
-                icon="download"
-                variant="ghost"
-                style={{ marginTop: spacing.sm }}
-                onPress={onDownload}
-              />
-            )
-          ) : null}
-
-          {next ? (
-            <PrimaryButton
-              label="Continue to next lesson"
-              variant="secondary"
-              style={{ marginTop: spacing.sm }}
-              onPress={() => {
-                setLastLesson(course.id, next.id);
-                goToLesson(next.id);
-              }}
-            />
-          ) : (
-            <PrimaryButton
-              label="Back to course"
-              variant="secondary"
-              style={{ marginTop: spacing.sm }}
-              onPress={goToLearningArea}
-            />
-          )}
+        <View style={styles.progress}>
+          <Row justify="space-between">
+            <Txt size={12} weight="semibold" color={t.fgMuted}>
+              Course progress
+            </Txt>
+            <Txt size={12} weight="semibold" color={t.fgMuted} tabular>
+              {doneCount} of {lessons.length} done
+            </Txt>
+          </Row>
+          <ProgressBar value={doneCount / Math.max(lessons.length, 1)} tone="up" style={{ marginTop: 8 }} />
         </View>
+
+        {lesson.isLocked ? (
+          <Button label="Unlock this course" icon="unlock" onPress={() => router.push(`/course/${courseKey}`)} style={{ marginTop: layout.section }} />
+        ) : (
+          <Button
+            label={done ? 'Completed' : 'Mark as complete'}
+            icon={done ? 'check-circle' : 'check'}
+            variant={done ? 'secondary' : 'primary'}
+            disabled={done}
+            onPress={onComplete}
+            style={{ marginTop: layout.section }}
+          />
+        )}
+        <Row gap={10} style={{ marginTop: 10 }}>
+          <Button label="Previous" icon="chevron-left" variant="secondary" disabled={!prev} onPress={() => goToLesson(prev)} style={{ flex: 1 }} />
+          <Button label="Next" iconRight="chevron-right" variant="secondary" disabled={!next} onPress={() => goToLesson(next)} style={{ flex: 1 }} />
+        </Row>
+
+        {body ? (
+          <Card style={{ marginTop: layout.section }}>
+            <Txt size={15} weight="bold">
+              About this lesson
+            </Txt>
+            <Txt size={14.5} color={t.fgMuted} style={{ marginTop: 8, lineHeight: 22 }}>
+              {body}
+            </Txt>
+          </Card>
+        ) : null}
+
+        {offline ? (
+          <Card style={[styles.offline, { marginTop: layout.section }]}>
+            <IconBox name="check-circle" tone="up" size={40} />
+            <View style={{ flex: 1 }}>
+              <Txt size={14} weight="semibold">
+                Saved for offline
+              </Txt>
+              <Txt size={12} color={t.fgSubtle} style={{ marginTop: 2 }}>
+                {offline.size ? `${formatBytes(offline.size)} · ` : ''}
+                {offline.expiresAt
+                  ? `available until ${new Date(offline.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                  : 'plays without internet'}
+              </Txt>
+            </View>
+            <Pressable onPress={onRemoveDownload} hitSlop={12} accessibilityLabel="Remove download" style={styles.trash}>
+              <Feather name="trash-2" size={17} color={t.fgMuted} />
+            </Pressable>
+          </Card>
+        ) : canDownload ? (
+          downloadPct != null ? (
+            <Card style={[styles.offline, { marginTop: layout.section }]}>
+              <ActivityIndicator color={t.brand400} />
+              <View style={{ flex: 1 }}>
+                <Txt size={14} weight="semibold" tabular>
+                  Downloading {Math.round(downloadPct * 100)}%
+                </Txt>
+                <ProgressBar value={Math.max(0.03, downloadPct)} style={{ marginTop: 8 }} />
+              </View>
+            </Card>
+          ) : (
+            <Button label="Download to watch offline" icon="download" variant="ghost" onPress={onDownload} style={{ marginTop: 12 }} />
+          )
+        ) : null}
+
+        {upNext.length ? (
+          <View style={{ marginTop: layout.section }}>
+            <Txt size={17} weight="bold" style={{ marginBottom: 12 }}>
+              Up next
+            </Txt>
+            <Card padded={false}>
+              {upNext.map((l, i) => (
+                <LessonRow
+                  key={l.id}
+                  lesson={l}
+                  number={idx + i + 2}
+                  done={doneIds.has(l.id)}
+                  last={i === upNext.length - 1}
+                  onPress={() => goToLesson(l)}
+                />
+              ))}
+            </Card>
+          </View>
+        ) : (
+          <Button label="Back to the course" variant="secondary" icon="list" onPress={goToLearningArea} style={{ marginTop: layout.section }} />
+        )}
       </ScrollView>
-    </View>
+    </>,
+    { course: course.title, position: lessons.length ? `Lesson ${idx + 1} of ${lessons.length}` : '' }
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#050B18' },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    gap: spacing.md,
-  },
-  loadingHint: { color: colors.muted, fontWeight: '600' },
-  missing: { color: colors.muted, fontWeight: '600' },
-  scroll: { paddingBottom: spacing.xxxl, flexGrow: 1 },
-  placeholderShell: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    backgroundColor: '#050B18',
-  },
-  placeholder: {
-    aspectRatio: 16 / 9,
-    borderRadius: radii.xl,
-    backgroundColor: colors.navyMid,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  placeholderIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    color: colors.white,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  body: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -4,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxxl,
-    minHeight: 420,
-  },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  backText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: spacing.sm,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1B5EF514',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-  },
-  pillDone: { backgroundColor: '#1EBE5714' },
-  pillText: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 11,
-    textTransform: 'capitalize',
-  },
-  metaText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  lessonTitle: {
-    ...typography.h2,
-    letterSpacing: -0.4,
-  },
-  lessonSub: {
-    color: colors.muted,
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  copy: {
-    marginTop: spacing.lg,
-    color: colors.text,
-    lineHeight: 22,
-    fontSize: 15,
-  },
-  navRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  navChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.card,
-    borderRadius: radii.full,
-    paddingVertical: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  navChipDisabled: { opacity: 0.55 },
-  offlineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  offlineTitle: { fontWeight: '700', color: colors.text },
-  offlineMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  progressTrack: { height: 6, borderRadius: 3, backgroundColor: '#E6ECF5', marginTop: 6, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
-  navChipText: { color: colors.navy, fontWeight: '700', fontSize: 13 },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.bg },
+    bar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: layout.side, paddingTop: 6, paddingBottom: 12 },
+    side: { paddingHorizontal: layout.side },
+    noVideo: {
+      aspectRatio: 16 / 9,
+      borderRadius: radii.xl,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      padding: 20,
+    },
+    scroll: { paddingHorizontal: layout.side, paddingTop: 20, paddingBottom: 48 },
+    progress: { marginTop: 16 },
+    offline: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    trash: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: t.tint },
+  })
+);

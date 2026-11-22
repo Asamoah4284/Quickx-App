@@ -8,7 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors, radii, spacing } from '@/constants/theme';
+import { colors, radii, spacing, t } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 /** Pulsing placeholder block shown while content loads. */
 export function Skeleton({ width = '100%', height = 14, radius = radii.sm, style }) {
@@ -26,7 +27,7 @@ export function Skeleton({ width = '100%', height = 14, radius = radii.sm, style
 
   return (
     <Animated.View
-      style={[{ width, height, borderRadius: radius, backgroundColor: '#E3E9F2' }, animatedStyle, style]}
+      style={[{ width, height, borderRadius: radius, backgroundColor: t.ink700 }, animatedStyle, style]}
     />
   );
 }
@@ -55,13 +56,15 @@ export function SkeletonList({ count = 3, imageHeight, gap = spacing.lg }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radii.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  body: { padding: spacing.lg },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radii.xl,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    body: { padding: spacing.lg },
+  })
+);

@@ -1,37 +1,70 @@
+import Feather from '@expo/vector-icons/Feather';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '@/constants/theme';
+import { Txt } from '@/components/ui/kit';
+import { LogoMark } from '@/components/ui/Logo';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { t } from '@/constants/theme';
+import { useAppState } from '@/context/AppState';
+import { themed } from '@/utils/themedStyles';
 
-export function AuthScreen({ title, subtitle, onBack, backLabel = '‹ Back', top, children }) {
+/** Shared frame for the sign-in and sign-up screens. Opens as a sheet over whatever the person was doing. */
+export function AuthScreen({ title, subtitle, onBack, backLabel = 'Back', top, children }) {
+  const { signInPrompt } = useAppState();
+
+  const close = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
+
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
-      <LinearGradient colors={['#07152F', '#0C2340', '#1246C4']} locations={[0, 0.55, 1]} style={styles.heroBg} />
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <LinearGradient
+        colors={[t.glowStrong, t.glowEnd, t.glowEnd]}
+        locations={[0, 0.7, 1]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.6, y: 0.9 }}
+        style={styles.glow}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scroll}>
-            <View style={styles.hero}>
-              {top && !onBack ? <View style={styles.top}>{top}</View> : null}
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            <View style={styles.bar}>
               {onBack ? (
-                <Pressable onPress={onBack} style={styles.back} hitSlop={12}>
-                  <Text style={styles.backText}>{backLabel}</Text>
-                </Pressable>
+                <PressableScale onPress={onBack} hitSlop={12} style={styles.round} accessibilityLabel={backLabel}>
+                  <Feather name="arrow-left" size={18} color={t.fg} />
+                </PressableScale>
               ) : (
-                <View style={styles.mark}>
-                  <Text style={styles.markLetter}>Q</Text>
-                </View>
+                <LogoMark size={40} />
               )}
-              <Text style={styles.brand}>QuickXLearn</Text>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+              <PressableScale onPress={close} hitSlop={12} style={styles.round} accessibilityLabel="Close">
+                <Feather name="x" size={18} color={t.fg} />
+              </PressableScale>
             </View>
-            <View style={styles.sheet}>{children}</View>
+
+            {signInPrompt?.reason && !onBack ? (
+              <View style={styles.reason}>
+                <Feather name="lock" size={14} color={t.brand300} />
+                <Txt size={13} color={t.fgMuted} style={{ flex: 1 }}>
+                  {signInPrompt.reason}
+                </Txt>
+              </View>
+            ) : null}
+
+            <Txt size={30} weight="bold" style={{ letterSpacing: -0.7, lineHeight: 36 }}>
+              {title}
+            </Txt>
+            {subtitle ? (
+              <Txt size={15} color={t.fgMuted} style={{ marginTop: 6, lineHeight: 22 }}>
+                {subtitle}
+              </Txt>
+            ) : null}
+
+            {top && !onBack ? <View style={{ marginTop: 24 }}>{top}</View> : null}
+            <View style={{ marginTop: 24 }}>{children}</View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -39,80 +72,30 @@ export function AuthScreen({ title, subtitle, onBack, backLabel = '‹ Back', to
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  heroBg: {
-    ...StyleSheet.absoluteFillObject,
-    height: 360,
-  },
-  safe: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingBottom: spacing.xxxl,
-  },
-  hero: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  top: {
-    marginBottom: spacing.xl,
-  },
-  back: {
-    alignSelf: 'flex-start',
-    marginBottom: spacing.md,
-    paddingVertical: 4,
-  },
-  backText: {
-    color: 'rgba(255,255,255,0.82)',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  mark: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  markLetter: {
-    color: colors.navy,
-    fontWeight: '800',
-    fontSize: 24,
-  },
-  brand: {
-    color: colors.gold,
-    fontWeight: '800',
-    fontSize: 13,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    marginBottom: spacing.md,
-  },
-  title: {
-    color: colors.white,
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.7,
-  },
-  subtitle: {
-    marginTop: 8,
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 320,
-  },
-  sheet: {
-    flexGrow: 1,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
-    minHeight: 420,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.bg },
+    glow: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
+    scroll: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
+    bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, marginBottom: 28 },
+    round: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.tint,
+      borderWidth: 1,
+      borderColor: t.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reason: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: 14,
+      backgroundColor: t.brandSoft,
+      marginBottom: 20,
+    },
+  })
+);

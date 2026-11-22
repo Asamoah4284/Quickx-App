@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors, radii, spacing } from '@/constants/theme';
+import { themed } from '@/utils/themedStyles';
 
 export function OtpInput({ value, onChange, error }) {
   const inputRef = useRef(null);
@@ -44,49 +45,51 @@ export function OtpInput({ value, onChange, error }) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginBottom: spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  box: {
-    flex: 1,
-    marginHorizontal: 4,
-    height: 58,
-    borderRadius: radii.md,
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boxFilled: {
-    borderColor: colors.navyMid,
-  },
-  boxActive: {
-    borderColor: colors.gold,
-    backgroundColor: '#FFFBF0',
-  },
-  boxError: {
-    borderColor: colors.danger,
-  },
-  digit: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  caret: {
-    width: 2,
-    height: 22,
-    backgroundColor: colors.gold,
-    borderRadius: 1,
-  },
-  hidden: {
-    ...StyleSheet.absoluteFillObject,
-    color: 'transparent',
-    opacity: 0.02,
-  },
-});
+const styles = themed(() =>
+  StyleSheet.create({
+    wrap: {
+      marginBottom: spacing.lg,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    box: {
+      flex: 1,
+      marginHorizontal: 4,
+      height: 58,
+      borderRadius: radii.md,
+      backgroundColor: colors.card,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    boxFilled: {
+      borderColor: colors.navyMid,
+    },
+    boxActive: {
+      borderColor: colors.gold,
+      backgroundColor: 'rgba(245,184,74,0.10)',
+    },
+    boxError: {
+      borderColor: colors.danger,
+    },
+    digit: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    caret: {
+      width: 2,
+      height: 22,
+      backgroundColor: colors.gold,
+      borderRadius: 1,
+    },
+    hidden: {
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      color: 'transparent',
+      opacity: 0.02,
+    },
+  })
+);
