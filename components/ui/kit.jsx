@@ -360,7 +360,8 @@ export function Chips({ items, value, onChange, style }) {
             key={item.value}
             haptic="select"
             onPress={() => onChange(item.value)}
-            style={[styles.chip, active && styles.chipActive]}>
+            style={[styles.chip, active && styles.chipActive, item.icon && { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+            {item.icon ? <Icon name={item.icon} size={12} color={active ? t.fg : t.fgSubtle} /> : null}
             <Txt size={13} weight="semibold" color={active ? t.fg : t.fgMuted}>
               {item.label}
             </Txt>

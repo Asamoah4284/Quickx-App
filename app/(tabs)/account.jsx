@@ -8,7 +8,7 @@ import { Logo } from '@/components/ui/Logo';
 import { Page } from '@/components/ui/Page';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { assetUrl } from '@/constants/api';
-import { FEATURE_LIST, LINKS } from '@/constants/features';
+import { PAID_FEATURE_LIST, LINKS } from '@/constants/features';
 import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { useApi } from '@/hooks/useApi';
@@ -52,7 +52,7 @@ function AccessList() {
   const { data } = useApi('/products');
   return (
     <Card padded={false}>
-      {FEATURE_LIST.map((f, i) => {
+      {PAID_FEATURE_LIST.map((f, i) => {
         const on = isOwner || has(f.key);
         const endsAt = expiryOf(f.key);
         const left = daysLeft(endsAt);

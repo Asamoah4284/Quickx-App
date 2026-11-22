@@ -20,7 +20,11 @@ export function plansFor(products, feature) {
 }
 
 /** What a feature is, what it costs and how to get it. Shown to anyone without access. */
-export function FeatureOffer({ feature, compact }) {
+/**
+ * title/text replace the default heading and blurb, for one part of a screen
+ * (for example a community room) instead of a whole feature.
+ */
+export function FeatureOffer({ feature, compact, title, text }) {
   const { isSignedIn, requireSignIn } = useAppState();
   const meta = FEATURES[feature];
   const { data } = useApi('/products');
@@ -35,14 +39,14 @@ export function FeatureOffer({ feature, compact }) {
           <Row gap={6} style={{ marginTop: 18 }}>
             <Icon name="lock" size={13} color={t.fgSubtle} />
             <Txt size={13} weight="semibold" color={t.fgSubtle}>
-              {meta.label} is a members feature
+              {title ? `Part of ${meta.label}` : `${meta.label} is a members feature`}
             </Txt>
           </Row>
           <Txt size={compact ? 22 : 26} weight="bold" style={{ marginTop: 6, letterSpacing: -0.5 }}>
-            Unlock {meta.label}
+            {title || `Unlock ${meta.label}`}
           </Txt>
           <Txt size={15} color={t.fgMuted} style={{ marginTop: 6, lineHeight: 22 }}>
-            {meta.blurb}
+            {text || meta.blurb}
           </Txt>
 
           {single?.highlights?.length && !compact ? (

@@ -3,6 +3,7 @@ import { AppState as RNAppState, KeyboardAvoidingView, Modal, Platform, Pressabl
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BASE, useCommunity } from '@/components/community/shared';
+import { FeatureOffer } from '@/components/FeatureGate';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Alert, Avatar, Button, Card, Divider, Icon, Loading, Row, Txt } from '@/components/ui/kit';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -202,7 +203,15 @@ export default function Messages({ openWith, onUnreadChange }) {
   return (
     <View style={{ gap: 14 }}>
       {error ? <Alert>{error}</Alert> : null}
-      {!me.isModerator && about.owner && !hasMentorChat && !me.muted ? (
+      {!me.isModerator && about.owner && !hasMentorChat && me.canMessageMentor === false ? (
+        <FeatureOffer
+          compact
+          feature="mentorship"
+          title={`Message ${firstName(about.owner.fullName)} directly`}
+          text="Private messages with Maxwell come with Mentorship. Questions for everyone are free in Q&A."
+        />
+      ) : null}
+      {!me.isModerator && about.owner && !hasMentorChat && !me.muted && me.canMessageMentor !== false ? (
         <Button
           icon="message-circle"
           label={`Message ${firstName(about.owner.fullName)}`}

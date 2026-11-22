@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { FeatureOffer } from '@/components/FeatureGate';
 import PostCard from '@/components/community/PostCard';
 import { BASE, useCommunity } from '@/components/community/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,6 +11,7 @@ import { Alert, Avatar, Button, Card, Chips, Icon, Input, Rise, Row, Txt } from 
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { api, assetUrl } from '@/constants/api';
+import { FEATURES } from '@/constants/features';
 import { t } from '@/constants/theme';
 import { useAppState } from '@/context/AppState';
 import { haptics } from '@/utils/haptics';
@@ -149,10 +151,13 @@ export default function Feed() {
     [roomId, token]
   );
 
+  const locked = Boolean(rooms.find((r) => r._id === roomId)?.locked);
+
   useEffect(() => {
     let cancelled = false;
     setPosts(null);
     setError('');
+    if (locked) return undefined;
     load()
       .then((data) => {
         if (cancelled) return;
@@ -163,7 +168,7 @@ export default function Feed() {
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, locked]);
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -183,23 +188,32 @@ export default function Feed() {
   return (
     <View style={{ gap: 14 }}>
       {rooms.length ? (
-        <Chips items={[{ value: '', label: 'Main feed' }, ...rooms.map((r) => ({ value: r._id, label: r.name }))]} value={roomId} onChange={setRoomId} />
+        <Chips items={[{ value: '', label: 'Main feed' }, ...rooms.map((r) => ({ value: r._id, label: r.name, icon: r.locked ? 'lock' : undefined }))]} value={roomId} onChange={setRoomId} />
       ) : null}
       {activeRoom?.description ? (
         <Txt size={13} color={t.fgMuted}>
           {activeRoom.description}
         </Txt>
       ) : null}
-      <Composer roomId={roomId} onPosted={(post) => setPosts((list) => [post, ...(list || [])])} />
+      {locked ? (
+        <FeatureOffer
+          compact
+          feature={activeRoom.requires}
+          title={`${activeRoom.name} is for ${FEATURES[activeRoom.requires]?.label} members`}
+          text="Get the plan to read and post here. Everything else in the community stays free."
+        />
+      ) : (
+        <Composer roomId={roomId} onPosted={(post) => setPosts((list) => [post, ...(list || [])])} />
+      )}
       {error ? <Alert>{error}</Alert> : null}
-      {posts === null && !error ? (
+      {!locked && posts === null && !error ? (
         <>
           <Skeleton height={160} radius={20} />
           <Skeleton height={220} radius={20} />
         </>
       ) : null}
-      {posts && !posts.length ? <EmptyState icon="comments-o" title="Nothing here yet" subtitle="Be the first to post." /> : null}
-      {(posts || []).map((post, i) => (
+      {!locked && posts && !posts.length ? <EmptyState icon="comments-o" title="Nothing here yet" subtitle="Be the first to post." /> : null}
+      {(locked ? [] : posts || []).map((post, i) => (
         <Rise key={post._id} index={i}>
           <PostCard
             post={post}
@@ -208,7 +222,7 @@ export default function Feed() {
           />
         </Rise>
       ))}
-      {cursor ? <Button variant="secondary" label="Load older posts" loading={loadingMore} onPress={loadMore} /> : null}
+      {!locked && cursor ? <Button variant="secondary" label="Load older posts" loading={loadingMore} onPress={loadMore} /> : null}
     </View>
   );
 }

@@ -12,7 +12,8 @@ import { money, useCurrency } from '@/utils/currency';
 import { daysLeft, durationLabel, formatDate } from '@/utils/format';
 
 const FAQ = [
-  ['Can I buy just one thing, like signals?', 'Yes. Courses, Signals, Community and Mentorship are each sold on their own. Buy only what you need.'],
+  ['Can I buy just one thing, like signals?', 'Yes. Courses, Signals and Mentorship are each sold on their own. Buy only what you need.'],
+  ['Is the community free?', 'Yes. Every member can use the community for free. Each plan also opens its own room there, like the Signals room for Signals members.'],
   ['What happens when my time runs out?', 'Access to that feature pauses. Nothing is deleted. Your progress and history are there when you come back.'],
   ['I still have time left. What if I buy again?', 'The new time is added on top of what you have, so you never lose days by renewing early.'],
   ['How do I pay?', 'Mobile Money (MTN, Telecel, AirtelTigo) or card. Access switches on as soon as the payment is confirmed.'],

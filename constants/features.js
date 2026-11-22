@@ -1,4 +1,7 @@
-/** The four things a member can have. Keys match the backend (constants/features.js). */
+/**
+ * The main parts of QuickX. Keys match the backend (constants/features.js).
+ * Courses, Signals and Mentorship are sold; the Community is free for everyone signed in.
+ */
 export const FEATURES = {
   courses: {
     key: 'courses',
@@ -19,7 +22,8 @@ export const FEATURES = {
     label: 'Community',
     icon: 'users',
     route: '/community',
-    blurb: 'Ask questions, share your trades and learn alongside other members.',
+    free: true,
+    blurb: 'Free for every member. Ask questions, share your trades and learn alongside other traders.',
   },
   mentorship: {
     key: 'mentorship',
@@ -31,6 +35,9 @@ export const FEATURES = {
 };
 
 export const FEATURE_LIST = Object.values(FEATURES);
+
+/** What can be bought (Account, Pricing). */
+export const PAID_FEATURE_LIST = FEATURE_LIST.filter((f) => !f.free);
 
 export const LINKS = {
   website: 'https://quickxlearn.com',

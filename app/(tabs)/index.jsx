@@ -43,7 +43,7 @@ function Hero() {
             Learn to trade.{'\n'}Trade with confidence.
           </Txt>
           <Txt size={15} color={t.fgMuted} style={{ marginTop: 10, lineHeight: 22 }}>
-            Courses, live signals, a private community and 1-on-1 mentorship, all in one app.
+            Courses, live signals, a free community and 1-on-1 mentorship, all in one app.
           </Txt>
           <View style={{ gap: 10, marginTop: 20 }}>
             <Button size="lg" label="See plans" iconRight="arrow-right" onPress={() => router.push('/pricing')} />
@@ -57,14 +57,14 @@ function Hero() {
 
 /** What this member has, and what they could add. */
 function Access() {
-  const { has, expiryOf, isOwner } = useAppState();
+  const { has, expiryOf, isOwner, isSignedIn } = useAppState();
   return (
     <View>
       <SectionTitle title="Your access" action="Plans" onAction={() => router.push('/pricing')} />
       <View style={styles.grid}>
         {FEATURE_LIST.map((f, i) => {
-          const on = isOwner || has(f.key);
-          const left = daysLeft(expiryOf(f.key));
+          const on = f.free ? isSignedIn : isOwner || has(f.key);
+          const left = f.free ? null : daysLeft(expiryOf(f.key));
           return (
             <Rise key={f.key} index={i} style={styles.cell}>
               <PressableScale onPress={() => router.push(f.route)} style={[styles.feature, on && styles.featureOn]}>
@@ -76,7 +76,17 @@ function Access() {
                   {f.label}
                 </Txt>
                 <Txt size={12} color={on && left && left <= 7 ? t.warn : t.fgSubtle} style={{ marginTop: 2 }}>
-                  {on ? (isOwner ? 'Owner' : left ? (left <= 7 ? `Ends in ${left} day${left === 1 ? '' : 's'}` : `Until ${formatDate(expiryOf(f.key))}`) : 'Active') : 'Tap to unlock'}
+                  {f.free
+                    ? 'Free for members'
+                    : on
+                      ? isOwner
+                        ? 'Owner'
+                        : left
+                          ? left <= 7
+                            ? `Ends in ${left} day${left === 1 ? '' : 's'}`
+                            : `Until ${formatDate(expiryOf(f.key))}`
+                          : 'Active'
+                      : 'Tap to unlock'}
                 </Txt>
               </PressableScale>
             </Rise>

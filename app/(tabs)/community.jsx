@@ -8,9 +8,8 @@ import { Live, Resources } from '@/components/community/LiveAndResources';
 import Messages from '@/components/community/Messages';
 import Questions from '@/components/community/Questions';
 import { BASE, CommunityContext, RichText } from '@/components/community/shared';
-import FeatureGate from '@/components/FeatureGate';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Alert, Button, Icon, Loading, Row, Tabs, Txt } from '@/components/ui/kit';
+import { Alert, Button, Card, Icon, IconBox, Loading, Row, Tabs, Txt } from '@/components/ui/kit';
 import { Page, RoundButton } from '@/components/ui/Page';
 import { api } from '@/constants/api';
 import { LINKS } from '@/constants/features';
@@ -163,15 +162,33 @@ function CommunityHome({ initialTab }) {
 
 export default function CommunityScreen() {
   const { tab } = useLocalSearchParams();
-  const { isSignedIn, has } = useAppState();
-  if (isSignedIn && has('community')) return <CommunityHome initialTab={typeof tab === 'string' ? tab : undefined} />;
+  const { isSignedIn, requireSignIn } = useAppState();
+  if (isSignedIn) return <CommunityHome initialTab={typeof tab === 'string' ? tab : undefined} />;
   return (
     <Page
       title="Community"
       eyebrow="Trade together"
-      subtitle="A private room for Maxwell's members. Share trades, ask questions and join live sessions."
+      subtitle="Share trades, ask questions and join live sessions with Maxwell and other traders."
       tabs>
-      <FeatureGate feature="community" />
+      <Card style={{ alignItems: 'flex-start' }}>
+        <IconBox name="users" size={52} />
+        <Txt size={13} weight="semibold" color={t.up} style={{ marginTop: 18 }}>
+          Free for every member
+        </Txt>
+        <Txt size={24} weight="bold" style={{ marginTop: 6, letterSpacing: -0.5 }}>
+          Join the community
+        </Txt>
+        <Txt size={15} color={t.fgMuted} style={{ marginTop: 6, lineHeight: 22 }}>
+          Create a free account to post, ask questions and get answers. Signals, Courses and Mentorship members also get their own
+          rooms.
+        </Txt>
+        <Button
+          size="lg"
+          label="Sign in or create an account"
+          style={{ alignSelf: 'stretch', marginTop: 20 }}
+          onPress={() => requireSignIn('Sign in to join the community. It is free.')}
+        />
+      </Card>
     </Page>
   );
 }
